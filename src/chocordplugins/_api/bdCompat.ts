@@ -43,9 +43,53 @@ interface NativeFetchHelper {
     fetchFile?(url: string, init?: SerializableRequestInit): Promise<NativeFetchResponse>;
 }
 
+const compatStores = Object.freeze({ ...WebpackCommon });
 const legacyWebpackKeyAliases: Readonly<Record<string, readonly string[]>> = Object.freeze({
     threadMessageAccessoryContentLeadingIcon: ["messageContent"]
 });
+const BD_COMPAT_MAX_CACHE_ENTRIES = 256;
+const BD_COMPAT_MAX_FACTORY_CACHE_ENTRIES = 16;
+const BD_COMPAT_CACHE_KEY_SEPARATOR = "\u0000";
+const functionSourceCache = new WeakMap<Function, string>();
+const legacyPluginFactoryCache = new Map<string, Function>();
+
+function getCacheKey(parts: readonly string[]) {
+    return parts.join(BD_COMPAT_CACHE_KEY_SEPARATOR);
+}
+
+function setBoundedCacheEntry<T>(cache: Map<string, T>, key: string, value: T) {
+    if (cache.size >= BD_COMPAT_MAX_CACHE_ENTRIES) {
+        cache.clear();
+    }
+
+    cache.set(key, value);
+    return value;
+}
+
+function getFunctionSource(value: Function) {
+    let source = functionSourceCache.get(value);
+    if (source === undefined) {
+        source = Function.prototype.toString.call(value);
+        functionSourceCache.set(value, source);
+    }
+
+    return source;
+}
+
+function getLegacyPluginFactory(source: string) {
+    let pluginFactory = legacyPluginFactoryCache.get(source);
+    if (pluginFactory) {
+        return pluginFactory;
+    }
+
+    if (legacyPluginFactoryCache.size >= BD_COMPAT_MAX_FACTORY_CACHE_ENTRIES) {
+        legacyPluginFactoryCache.clear();
+    }
+
+    pluginFactory = new Function("module", "exports", "BdApi", "window", "globalThis", "global", "localStorage", "require", source);
+    legacyPluginFactoryCache.set(source, pluginFactory);
+    return pluginFactory;
+}
 
 const memoryStorage = (() => {
     const values = new Map<string, string>();
@@ -61,7 +105,17 @@ const memoryStorage = (() => {
             return values.get(String(key)) ?? null;
         },
         key(index: number) {
-            return [...values.keys()][index] ?? null;
+            if (!Number.isInteger(index) || index < 0) return null;
+
+            let currentIndex = 0;
+            for (const key of values.keys()) {
+                if (currentIndex === index) {
+                    return key;
+                }
+                currentIndex++;
+            }
+
+            return null;
         },
         removeItem(key: string) {
             values.delete(String(key));
@@ -387,13 +441,13 @@ function stringMatches(source: string, values: Array<string | RegExp>) {
 
 function moduleContainsCode(module: unknown, values: Array<string | RegExp>) {
     if (typeof module === "function") {
-        return stringMatches(Function.prototype.toString.call(module), values);
+        return stringMatches(getFunctionSource(module), values);
     }
 
     if (!module || typeof module !== "object") return false;
     for (const value of Object.values(module)) {
         if (typeof value !== "function") continue;
-        if (stringMatches(Function.prototype.toString.call(value), values)) return true;
+        if (stringMatches(getFunctionSource(value), values)) return true;
     }
     return false;
 }
@@ -417,9 +471,15 @@ function findInTree(tree: unknown, predicate: (value: unknown) => boolean, optio
             continue;
         }
 
-        const keys = walkable ?? Object.keys(value);
-        for (const key of keys) {
-            if (!Object.hasOwn(value, key)) continue;
+        if (walkable) {
+            for (const key of walkable) {
+                if (!Object.hasOwn(value, key)) continue;
+                stack.push((value as Record<string, unknown>)[key]);
+            }
+            continue;
+        }
+
+        for (const key of Object.keys(value)) {
             stack.push((value as Record<string, unknown>)[key]);
         }
     }
@@ -437,6 +497,8 @@ function toToastType(type: unknown) {
 class BdRuntime {
     private readonly patchers = new Set<CompatPatcher>();
     private readonly styles = new Set<BdApiStyleManager>();
+    private readonly apiInstances = new Map<string, Record<string, unknown>>();
+    private readonly webpackApi = this.createWebpackApi();
 
     constructor(private readonly defaultPluginName: string) { }
 
@@ -455,6 +517,9 @@ class BdRuntime {
             bySource: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
             byStrings: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
         };
+        const modulesByKeysCache = new Map<string, Array<Record<string, unknown>>>();
+        const bestModuleByKeysCache = new Map<string, Record<string, unknown> | null>();
+        const normalizedModuleCache = new WeakMap<Record<string, unknown>, Map<string, Record<string, unknown>>>();
 
         const findModuleForBulkQuery = (query: BdBulkQuery) => {
             const matcher = query.filter;
@@ -496,6 +561,12 @@ class BdRuntime {
         };
 
         const findAllModulesByKeys = (keys: string[]) => {
+            const cacheKey = getCacheKey(keys);
+            const cachedMatches = modulesByKeysCache.get(cacheKey);
+            if (cachedMatches) {
+                return cachedMatches;
+            }
+
             const directFilter = Filters.byKeys(...keys);
             const rawMatches = findAll((module: unknown) => {
                 if (directFilter(module)) return true;
@@ -504,26 +575,42 @@ class BdRuntime {
             }, { topLevelOnly: true });
 
             const candidates: Array<Record<string, unknown>> = [];
+            const seenMatches = new Set<Record<string, unknown>>();
             for (const rawMatch of rawMatches) {
                 if (!rawMatch || typeof rawMatch !== "object") continue;
                 const match = rawMatch as Record<string, unknown>;
 
-                if (directFilter(match)) {
+                if (directFilter(match) && !seenMatches.has(match)) {
+                    seenMatches.add(match);
                     candidates.push(match);
                 }
 
                 const defaultExport = match.default;
-                if (defaultExport && typeof defaultExport === "object" && directFilter(defaultExport)) {
-                    candidates.push(defaultExport as Record<string, unknown>);
+                if (
+                    defaultExport &&
+                    typeof defaultExport === "object" &&
+                    directFilter(defaultExport) &&
+                    !seenMatches.has(defaultExport as Record<string, unknown>)
+                ) {
+                    const directDefault = defaultExport as Record<string, unknown>;
+                    seenMatches.add(directDefault);
+                    candidates.push(directDefault);
                 }
             }
 
-            return candidates;
+            return setBoundedCacheEntry(modulesByKeysCache, cacheKey, candidates);
         };
 
         const findBestModuleByKeys = (keys: string[]) => {
+            const cacheKey = getCacheKey(keys);
+            if (bestModuleByKeysCache.has(cacheKey)) {
+                return bestModuleByKeysCache.get(cacheKey)!;
+            }
+
             const matches = findAllModulesByKeys(keys);
-            if (!matches.length) return null;
+            if (!matches.length) {
+                return setBoundedCacheEntry(bestModuleByKeysCache, cacheKey, null);
+            }
 
             let best = matches[0];
             let bestScore = scoreWebpackMatch(best, keys);
@@ -536,11 +623,18 @@ class BdRuntime {
                 bestScore = score;
             }
 
-            return best;
+            return setBoundedCacheEntry(bestModuleByKeysCache, cacheKey, best);
         };
 
         const normalizeWebpackMatch = (match: Record<string, unknown> | null, keys: string[]) => {
             if (!match) return null;
+
+            const cacheKey = getCacheKey(keys);
+            const cachedMatches = normalizedModuleCache.get(match);
+            const cachedNormalized = cachedMatches?.get(cacheKey);
+            if (cachedNormalized) {
+                return cachedNormalized;
+            }
 
             let normalized: Record<string, unknown> | null = null;
             const ensureNormalized = () => normalized ??= { ...match };
@@ -614,7 +708,18 @@ class BdRuntime {
                 ensureNormalized()[key] = resolvedValue;
             }
 
-            return normalized ?? match;
+            const normalizedMatch = normalized ?? match;
+            const normalizedMatches = cachedMatches ?? new Map<string, Record<string, unknown>>();
+            if (normalizedMatches.size >= BD_COMPAT_MAX_CACHE_ENTRIES) {
+                normalizedMatches.clear();
+            }
+            normalizedMatches.set(cacheKey, normalizedMatch);
+
+            if (!cachedMatches) {
+                normalizedModuleCache.set(match, normalizedMatches);
+            }
+
+            return normalizedMatch;
         };
 
         const getByKeys = (...keys: string[]) => {
@@ -670,7 +775,7 @@ class BdRuntime {
 
         return {
             Filters,
-            Stores: Object.freeze({ ...WebpackCommon }),
+            Stores: compatStores,
             getByKeys,
             getStore: (name: string) => findStore(name),
             getBulk: (...queries: BdBulkQuery[]) => queries.map(findModuleForBulkQuery)
@@ -679,6 +784,11 @@ class BdRuntime {
 
     createBdApi(instanceName?: string) {
         const pluginName = instanceName ?? this.defaultPluginName;
+        const cachedApi = this.apiInstances.get(pluginName);
+        if (cachedApi) {
+            return cachedApi;
+        }
+
         const logger = new Logger(`${pluginName}Compat`);
         const patcher = new CompatPatcher(logger);
         const styles = new CompatStyleManager(pluginName);
@@ -687,7 +797,7 @@ class BdRuntime {
         this.patchers.add(patcher);
         this.styles.add(styles);
 
-        const webpackApi = this.createWebpackApi();
+        const { webpackApi } = this;
 
         const sharedApi = {
             Webpack: webpackApi,
@@ -768,8 +878,9 @@ class BdRuntime {
             return runtime.createBdApi(name);
         } as unknown as Record<string, unknown>;
 
-        Object.assign(BdApiCtor, sharedApi);
-        return BdApiCtor;
+        const bdApi = Object.assign(BdApiCtor, sharedApi);
+        this.apiInstances.set(pluginName, bdApi);
+        return bdApi;
     }
 
     dispose() {
@@ -777,6 +888,7 @@ class BdRuntime {
         for (const styleManager of this.styles) styleManager.clear();
         this.patchers.clear();
         this.styles.clear();
+        this.apiInstances.clear();
     }
 }
 
@@ -786,7 +898,7 @@ function loadLegacyPlugin(source: string, bdApi: unknown, pluginName: string, lo
     const globalScope = typeof globalThis === "undefined" ? {} : globalThis;
     const windowScope = typeof window === "undefined" ? globalScope : window;
     const requireShim = createLegacyRequireShim(pluginName, logger);
-    const pluginFactory = new Function("module", "exports", "BdApi", "window", "globalThis", "global", "localStorage", "require", source);
+    const pluginFactory = getLegacyPluginFactory(source);
     pluginFactory(module, module.exports, bdApi, windowScope, globalScope, globalScope, localStorage, requireShim);
     const exported = module.exports as { default?: unknown; };
     return exported.default ?? exported;

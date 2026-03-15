@@ -181,7 +181,7 @@ function ExcludedPluginsList({ search }: { search: string; }) {
 
 interface PluginCardEntry {
     category: PluginCategory;
-    card: JSX.Element;
+    plugin: typeof Plugins[keyof typeof Plugins];
 }
 
 export default function PluginSettings() {
@@ -261,6 +261,27 @@ export default function PluginSettings() {
 
     const sortedPlugins = useMemo(() => Object.values(Plugins)
         .sort((a, b) => a.name.localeCompare(b.name)), []);
+    const nonApiPlugins = useMemo(
+        () => sortedPlugins.filter(plugin => !plugin.name.endsWith("API") && !plugin.required),
+        [sortedPlugins]
+    );
+    const { totalStockPlugins, totalUserPlugins } = useMemo(() => {
+        let stock = 0;
+        let user = 0;
+
+        for (const plugin of nonApiPlugins) {
+            if (PluginMeta[plugin.name].userPlugin) {
+                user++;
+                continue;
+            }
+
+            if (!plugin.hidden) {
+                stock++;
+            }
+        }
+
+        return { totalStockPlugins: stock, totalUserPlugins: user };
+    }, [nonApiPlugins]);
     const resolvePluginCategory = useMemo(
         () => createPluginCategoryResolver(
             sortedPlugins.map(plugin => ({
@@ -292,6 +313,7 @@ export default function PluginSettings() {
         () => debounce((query: string) => setSearchValue(prev => ({ ...prev, value: query })), 150),
         []
     );
+    React.useEffect(() => () => debouncedSetSearch.cancel(), [debouncedSetSearch]);
 
     const search = searchValue.value.toLowerCase();
     const onSearch = useCallback((query: string) => {
@@ -420,15 +442,7 @@ export default function PluginSettings() {
             } else {
                 pluginEntries.push({
                     category: resolvePluginCategory(p.name),
-                    card: (
-                        <PluginCard
-                            onRestartNeeded={handleRestartNeeded}
-                            disabled={false}
-                            plugin={p}
-                            descriptionLanguage={selectedDescriptionLanguage}
-                            key={p.name}
-                        />
-                    )
+                    plugin: p
                 });
             }
         }
@@ -476,18 +490,24 @@ export default function PluginSettings() {
     }
 
     // Code directly taken from supportHelper.tsx
-    const { totalStockPlugins, totalUserPlugins, enabledStockPlugins, enabledUserPlugins, enabledPlugins } = useMemo(() => {
-        const isApiPlugin = (plugin: string) => plugin.endsWith("API") || Plugins[plugin].required;
+    const { enabledStockPlugins, enabledUserPlugins, enabledPlugins } = useMemo(() => {
+        const enabledPlugins: string[] = [];
+        let enabledStockPlugins = 0;
+        let enabledUserPlugins = 0;
 
-        const totalPlugins = Object.keys(Plugins).filter(p => !isApiPlugin(p));
-        const enabledPlugins = Object.keys(Plugins).filter(p => isPluginEnabled(p) && !isApiPlugin(p));
+        for (const plugin of nonApiPlugins) {
+            if (!isPluginEnabled(plugin.name)) continue;
 
-        const totalStockPlugins = totalPlugins.filter(p => !PluginMeta[p].userPlugin && !Plugins[p].hidden).length;
-        const totalUserPlugins = totalPlugins.filter(p => PluginMeta[p].userPlugin).length;
-        const enabledStockPlugins = enabledPlugins.filter(p => !PluginMeta[p].userPlugin).length;
-        const enabledUserPlugins = enabledPlugins.filter(p => PluginMeta[p].userPlugin).length;
-        return { totalStockPlugins, totalUserPlugins, enabledStockPlugins, enabledUserPlugins, enabledPlugins };
-    }, [settings.plugins]);
+            enabledPlugins.push(plugin.name);
+            if (PluginMeta[plugin.name].userPlugin) {
+                enabledUserPlugins++;
+            } else {
+                enabledStockPlugins++;
+            }
+        }
+
+        return { enabledStockPlugins, enabledUserPlugins, enabledPlugins };
+    }, [nonApiPlugins, settings.plugins]);
     const pluginsToLoad = Math.min(36, pluginEntries.length);
     const [visibleCount, setVisibleCount] = React.useState(pluginsToLoad);
     const loadMore = React.useCallback(() => {
@@ -495,6 +515,7 @@ export default function PluginSettings() {
     }, [pluginEntries.length]);
 
     const dLoadMore = useMemo(() => debounce(loadMore, 100), [loadMore]);
+    React.useEffect(() => () => dLoadMore.cancel(), [dLoadMore]);
 
     const [sentinelRef, isSentinelVisible] = useIntersection();
     React.useEffect(() => {
@@ -505,21 +526,21 @@ export default function PluginSettings() {
 
     const visiblePluginEntries = pluginEntries.slice(0, visibleCount);
     const groupedVisiblePlugins = useMemo(() => {
-        const groupedPlugins = new Map<PluginCategory, JSX.Element[]>();
+        const groupedPlugins = new Map<PluginCategory, Array<typeof Plugins[keyof typeof Plugins]>>();
         for (const category of PLUGIN_CATEGORY_ORDER) {
             groupedPlugins.set(category, []);
         }
 
-        for (const { category, card } of visiblePluginEntries) {
-            groupedPlugins.get(category)?.push(card);
+        for (const { category, plugin } of visiblePluginEntries) {
+            groupedPlugins.get(category)?.push(plugin);
         }
 
         return PLUGIN_CATEGORY_ORDER
             .map(category => ({
                 category,
-                cards: groupedPlugins.get(category) ?? []
+                plugins: groupedPlugins.get(category) ?? []
             }))
-            .filter(({ cards }) => cards.length > 0);
+            .filter(({ plugins }) => plugins.length > 0);
     }, [visiblePluginEntries]);
 
     return (
@@ -595,7 +616,7 @@ export default function PluginSettings() {
                 ? (
                     <>
                         {groupedVisiblePlugins.length
-                            ? groupedVisiblePlugins.map(({ category, cards }) => {
+                            ? groupedVisiblePlugins.map(({ category, plugins }) => {
                                 const isCollapsed = collapsedCategories.has(category);
                                 return (
                                     <section key={category} className={cl("category-section")}>
@@ -604,9 +625,21 @@ export default function PluginSettings() {
                                             onClick={() => toggleCategory(category)}
                                         >
                                             {isCollapsed ? <RightArrow className={cl("category-icon")} /> : <DownArrow className={cl("category-icon")} />}
-                                            {PLUGIN_CATEGORY_LABELS[category]} ({cards.length})
+                                            {PLUGIN_CATEGORY_LABELS[category]} ({plugins.length})
                                         </HeadingTertiary>
-                                        {!isCollapsed && <div className={cl("grid")}>{cards}</div>}
+                                        {!isCollapsed && (
+                                            <div className={cl("grid")}>
+                                                {plugins.map(plugin => (
+                                                    <PluginCard
+                                                        key={plugin.name}
+                                                        onRestartNeeded={handleRestartNeeded}
+                                                        disabled={false}
+                                                        plugin={plugin}
+                                                        descriptionLanguage={selectedDescriptionLanguage}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
                                     </section>
                                 );
                             })
