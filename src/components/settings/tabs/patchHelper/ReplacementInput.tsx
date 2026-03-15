@@ -8,6 +8,7 @@ import { FormSwitch } from "@components/FormSwitch";
 import { Heading } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { Margins } from "@utils/margins";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { Parser, TextInput, useEffect, useState } from "@webpack/common";
 
 const RegexGuide = {
@@ -21,6 +22,7 @@ const RegexGuide = {
 } as const;
 
 export function ReplacementInput({ replacement, setReplacement, replacementError }) {
+    const t = useSettingsI18n();
     const [isFunc, setIsFunc] = useState(false);
     const [error, setError] = useState<string>();
 
@@ -34,7 +36,7 @@ export function ReplacementInput({ replacement, setReplacement, replacementError
                     setReplacement(() => func);
 
                 else
-                    setError("Replacement must be a function");
+                    setError(t("Replacement must be a function"));
             } catch (e) {
                 setReplacement(v);
                 setError((e as Error).message);
@@ -54,7 +56,7 @@ export function ReplacementInput({ replacement, setReplacement, replacementError
     return (
         <>
             {/* FormTitle adds a class if className is not set, so we set it to an empty string to prevent that */}
-            <Heading className="">Replacement</Heading>
+            <Heading className="">{t("Replacement")}</Heading>
             <TextInput
                 value={replacement?.toString()}
                 onChange={onChange}
@@ -62,7 +64,7 @@ export function ReplacementInput({ replacement, setReplacement, replacementError
             />
             {!isFunc && (
                 <div>
-                    <Heading className={Margins.top8}>Cheat Sheet</Heading>
+                    <Heading className={Margins.top8}>{t("Cheat Sheet")}</Heading>
 
                     {Object.entries(RegexGuide).map(([placeholder, desc]) => (
                         <Paragraph key={placeholder}>
@@ -76,8 +78,8 @@ export function ReplacementInput({ replacement, setReplacement, replacementError
                 className={Margins.top16}
                 value={isFunc}
                 onChange={setIsFunc}
-                title={"Treat Replacement as function"}
-                description='"Replacement" will be evaluated as a function if this is enabled'
+                title={t("Treat Replacement as function")}
+                description={t("\"Replacement\" will be evaluated as a function if this is enabled")}
                 hideBorder
             />
         </>

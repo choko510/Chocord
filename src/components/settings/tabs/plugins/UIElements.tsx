@@ -18,21 +18,24 @@ import { classNameFactory } from "@utils/css";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { ModalContent, ModalProps, ModalRoot, ModalSize, openModal } from "@utils/modal";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { IconComponent } from "@utils/types";
 import { Clickable } from "@webpack/common";
 
 const cl = classNameFactory("vc-plugin-ui-elements-");
 
 export function UIElementsButton() {
+    const t = useSettingsI18n();
+
     return (
         <Clickable onClick={() => openModal(modalProps => <UIElementsModal {...modalProps} />)}>
             <Card className={cl("button")} defaultPadding>
                 <div className={cl("button-description")}>
                     <Paragraph size="md" weight="semibold">
-                        Manage plugin UI elements
+                        {t("Manage plugin UI elements")}
                     </Paragraph>
                     <Paragraph size="xs">
-                        Allows you to hide buttons you don't like
+                        {t("Allows you to hide buttons you don't like")}
                     </Paragraph>
                 </div>
                 <svg
@@ -53,6 +56,7 @@ function Section(props: {
     settings: SettingsPluginUiElements;
     buttonMap: Map<string, { icon: IconComponent; }>;
 }) {
+    const t = useSettingsI18n();
     const { buttonMap, description, title, settings } = props;
 
     const switches = Array.from(buttonMap, ([name, { icon }]) => {
@@ -80,7 +84,7 @@ function Section(props: {
             <div className={cl("switches")}>
                 {switches.length === 0 && (
                     <Paragraph weight="medium" className={cl("switches-row")} style={{ color: "var(--text-muted)" }}>
-                        Buttons of enabled plugins will appear here.
+                        {t("Buttons of enabled plugins will appear here.")}
                     </Paragraph>
                 )}
                 {switches}
@@ -90,20 +94,21 @@ function Section(props: {
 }
 
 function UIElementsModal(props: ModalProps) {
+    const t = useSettingsI18n();
     const { uiElements } = useSettings(["uiElements.*"]);
 
     return (
         <ModalRoot {...props} size={ModalSize.MEDIUM}>
             <ModalContent className={cl("modal-content")}>
                 <Section
-                    title="Chatbar Buttons"
-                    description="These are the buttons on the right side of the chat input bar"
+                    title={t("Chatbar Buttons")}
+                    description={t("These are the buttons on the right side of the chat input bar")}
                     buttonMap={ChatBarButtonMap}
                     settings={uiElements.chatBarButtons}
                 />
                 <Section
-                    title="Message Popover Buttons"
-                    description="These are the floating buttons on the right when you hover over a message"
+                    title={t("Message Popover Buttons")}
+                    description={t("These are the floating buttons on the right when you hover over a message")}
                     buttonMap={MessagePopoverButtonMap}
                     settings={uiElements.messagePopoverButtons}
                 />

@@ -5,6 +5,7 @@
  */
 
 import { DataStore } from "@api/index";
+import { translateSettingsText as t } from "@utils/settingsI18n";
 
 import gitHash from "~git-hash";
 import plugins from "~plugins";
@@ -76,11 +77,11 @@ async function fetchCommitsBetween(
 
         return data.commits.map((commit: any) => {
             const message: string = commit?.commit?.message ?? "";
-            const summary = message.split("\n")[0] || "No message";
+            const summary = message.split("\n")[0] || t("No message");
             const authorName =
                 commit?.commit?.author?.name ||
                 commit?.author?.login ||
-                "Unknown";
+                t("Unknown");
             const timestamp = commit?.commit?.author?.date
                 ? Date.parse(commit.commit.author.date)
                 : undefined;
@@ -479,11 +480,20 @@ export function formatTimestamp(timestamp: number): string {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffMinutes < 60) {
-        return `${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""} ago`;
+        return t("{count} minute{s} ago", {
+            count: diffMinutes,
+            s: diffMinutes !== 1 ? "s" : "",
+        });
     } else if (diffHours < 24) {
-        return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+        return t("{count} hour{s} ago", {
+            count: diffHours,
+            s: diffHours !== 1 ? "s" : "",
+        });
     } else if (diffDays < 7) {
-        return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+        return t("{count} day{s} ago", {
+            count: diffDays,
+            s: diffDays !== 1 ? "s" : "",
+        });
     } else {
         return date.toLocaleDateString();
     }

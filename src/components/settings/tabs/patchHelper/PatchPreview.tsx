@@ -8,6 +8,7 @@ import { Heading } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { Margins } from "@utils/margins";
 import { canonicalizeMatch, canonicalizeReplace } from "@utils/patches";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { makeCodeblock } from "@utils/text";
 import { ReplaceFn } from "@utils/types";
 import { Button, Parser, useMemo, useState } from "@webpack/common";
@@ -43,6 +44,7 @@ function makeDiff(original: string, patched: string, match: RegExpMatchArray | n
 }
 
 function Match({ matchResult }: { matchResult: RegExpMatchArray | null; }) {
+    const t = useSettingsI18n();
     if (!matchResult)
         return null;
 
@@ -55,7 +57,7 @@ function Match({ matchResult }: { matchResult: RegExpMatchArray | null; }) {
 
     return (
         <>
-            <Heading>Match</Heading>
+            <Heading>{t("Match")}</Heading>
             <div style={{ userSelect: "text" }}>{Parser.parse(fullMatch)}</div>
             <div style={{ userSelect: "text" }}>{Parser.parse(groups)}</div>
         </>
@@ -63,6 +65,7 @@ function Match({ matchResult }: { matchResult: RegExpMatchArray | null; }) {
 }
 
 function Diff({ diff }: { diff: Change[] | null; }) {
+    const t = useSettingsI18n();
     if (!diff?.length)
         return null;
 
@@ -85,13 +88,14 @@ function Diff({ diff }: { diff: Change[] | null; }) {
 
     return (
         <>
-            <Heading>Diff</Heading>
+            <Heading>{t("Diff")}</Heading>
             {diffLines}
         </>
     );
 }
 
 export function PatchPreview({ module, match, replacement, setReplacementError }: PatchPreviewProps) {
+    const t = useSettingsI18n();
     const [id, fact] = module;
     const [compileResult, setCompileResult] = useState<[boolean, string]>();
 
@@ -120,7 +124,7 @@ export function PatchPreview({ module, match, replacement, setReplacementError }
 
     return (
         <>
-            <Heading>Module {id}</Heading>
+            <Heading>{t("Module {id}", { id })}</Heading>
 
             <Match matchResult={matchResult} />
             <Diff diff={diff} />
@@ -131,13 +135,13 @@ export function PatchPreview({ module, match, replacement, setReplacementError }
                     onClick={() => {
                         try {
                             Function(patchedCode.replace(/^(?=function\()/, "0,"));
-                            setCompileResult([true, "Compiled successfully"]);
+                            setCompileResult([true, t("Compiled successfully")]);
                         } catch (err) {
                             setCompileResult([false, (err as Error).message]);
                         }
                     }}
                 >
-                    Compile
+                    {t("Compile")}
                 </Button>
             )}
 

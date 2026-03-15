@@ -38,6 +38,7 @@ import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { useAwaiter, useIntersection } from "@utils/react";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { Alerts, lodash, Parser, React, Select, SelectedChannelStore, TextInput, Toasts, Tooltip, useCallback, useMemo, useState, useStateFromStores } from "@webpack/common";
 import { JSX } from "react";
 
@@ -65,49 +66,51 @@ function showErrorToast(message: string) {
     });
 }
 
-function restartWithVoiceCallWarning() {
+function restartWithVoiceCallWarning(t: (text: string, vars?: Record<string, string | number>) => string) {
     if (!SelectedChannelStore.getVoiceChannelId()) {
         location.reload();
         return;
     }
 
     Alerts.show({
-        title: "You're in a voice call",
+        title: t("You're in a voice call"),
         body: (
             <>
-                <p style={{ textAlign: "center" }}>Restarting now will disconnect your current call.</p>
-                <p style={{ textAlign: "center" }}>Would you like to restart anyway?</p>
+                <p style={{ textAlign: "center" }}>{t("Restarting now will disconnect your current call.")}</p>
+                <p style={{ textAlign: "center" }}>{t("Would you like to restart anyway?")}</p>
             </>
         ),
-        confirmText: "Restart Anyway",
-        cancelText: "Later",
+        confirmText: t("Restart Anyway"),
+        cancelText: t("Later"),
         onConfirm: () => location.reload()
     });
 }
 
 function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetCheckAndDo, isInVoiceCall }) {
+    const t = useSettingsI18n();
+
     return (
         <Card className={classes(cl("info-card"), required && "vc-warning-card")}>
             {required ? (
                 <>
-                    <HeadingTertiary>Restart required!</HeadingTertiary>
+                    <HeadingTertiary>{t("Restart required!")}</HeadingTertiary>
                     <Paragraph className={cl("dep-text")}>
-                        Restart now to apply new plugins and their settings
+                        {t("Restart now to apply new plugins and their settings")}
                     </Paragraph>
                     {isInVoiceCall && (
                         <Paragraph className={cl("dep-text")}>
-                            You are in a voice call. Restarting now will disconnect it.
+                            {t("You are in a voice call. Restarting now will disconnect it.")}
                         </Paragraph>
                     )}
-                    <Button variant="primary" className={cl("restart-button")} onClick={restartWithVoiceCallWarning}>
-                        Restart
+                    <Button variant="primary" className={cl("restart-button")} onClick={() => restartWithVoiceCallWarning(t)}>
+                        {t("Restart")}
                     </Button>
                 </>
             ) : (
                 <>
-                    <HeadingTertiary>Plugin Management</HeadingTertiary>
-                    <Paragraph>Press the cog wheel or info icon to get more info on a plugin</Paragraph>
-                    <Paragraph>Plugins with a cog wheel have settings you can modify!</Paragraph>
+                    <HeadingTertiary>{t("Plugin Management")}</HeadingTertiary>
+                    <Paragraph>{t("Press the cog wheel or info icon to get more info on a plugin")}</Paragraph>
+                    <Paragraph>{t("Plugins with a cog wheel have settings you can modify!")}</Paragraph>
                 </>
             )}
             {enabledPlugins.length > 0 && !required && (
@@ -119,7 +122,7 @@ function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetC
                         return openWarningModal(null, undefined, false, enabledPlugins.length, resetCheckAndDo);
                     }}
                 >
-                    Disable All Plugins
+                    {t("Disable All Plugins")}
                 </Button>
             )}
         </Card>
@@ -148,6 +151,8 @@ export const ExcludedReasons: Record<"web" | "discordDesktop" | "vesktop" | "equ
 };
 
 function ExcludedPluginsList({ search }: { search: string; }) {
+    const t = useSettingsI18n();
+
     const matchingExcludedPlugins = search
         ? Object.entries(ExcludedPlugins)
             .filter(([name]) => name.toLowerCase().includes(search))
@@ -157,16 +162,18 @@ function ExcludedPluginsList({ search }: { search: string; }) {
         <Paragraph className={Margins.top16}>
             {matchingExcludedPlugins.length
                 ? <>
-                    <Paragraph>Are you looking for:</Paragraph>
+                    <Paragraph>{t("Are you looking for:")}</Paragraph>
                     <ul>
                         {matchingExcludedPlugins.map(([name, reason]) => (
                             <li key={name}>
-                                <b>{name}</b>: Only available on the {ExcludedReasons[reason]}
+                                <b>{name}</b>: {t("Only available on the {platform}", {
+                                    platform: t(ExcludedReasons[reason])
+                                })}
                             </li>
                         ))}
                     </ul>
                 </>
-                : "No plugins meet the search criteria."
+                : t("No plugins meet the search criteria.")
             }
         </Paragraph>
     );
@@ -178,6 +185,7 @@ interface PluginCardEntry {
 }
 
 export default function PluginSettings() {
+    const t = useSettingsI18n();
     const settings = useSettings();
     const changes = React.useMemo(() => new ChangeList<string>(), []);
     const isInVoiceCall = useStateFromStores(
@@ -200,11 +208,11 @@ export default function PluginSettings() {
             if (!changes.hasChanges) return;
 
             if (SelectedChannelStore.getVoiceChannelId()) {
-                Toasts.show({
-                    message: "Plugin changes still require a restart. Restart was deferred because you're in a voice call.",
-                    type: Toasts.Type.MESSAGE,
-                    id: Toasts.genId(),
-                    options: {
+                    Toasts.show({
+                        message: t("Plugin changes still require a restart. Restart was deferred because you're in a voice call."),
+                        type: Toasts.Type.MESSAGE,
+                        id: Toasts.genId(),
+                        options: {
                         position: Toasts.Position.BOTTOM
                     }
                 });
@@ -218,7 +226,7 @@ export default function PluginSettings() {
             const remainingCount = pluginNames.length - displayed.length;
 
             Alerts.show({
-                title: "Restart required",
+                title: t("Restart required"),
                 body: (
                     <div>
                         {displayed.map((s, i) => (
@@ -227,12 +235,12 @@ export default function PluginSettings() {
                                 {Parser.parse("`" + s + "`")}
                             </span>
                         ))}
-                        {remainingCount > 0 && <span> and {remainingCount} more</span>}
+                        {remainingCount > 0 && <span> {t("and {count} more", { count: remainingCount })}</span>}
                     </div>
                 ),
-                confirmText: "Restart now",
-                cancelText: "Later!",
-                onConfirm: restartWithVoiceCallWarning
+                confirmText: t("Restart now"),
+                cancelText: t("Later!"),
+                onConfirm: () => restartWithVoiceCallWarning(t)
             });
         };
     }, []);
@@ -266,11 +274,11 @@ export default function PluginSettings() {
 
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
     const descriptionLanguageOptions = useMemo(() => ([
-        { label: "Original descriptions", value: DESCRIPTION_TRANSLATION_DISABLED, default: true },
+        { label: t("Original descriptions"), value: DESCRIPTION_TRANSLATION_DISABLED, default: true },
         ...Object.entries(GoogleLanguages)
             .filter(([code]) => code !== "auto")
             .map(([value, label]) => ({ label, value }))
-    ]), []);
+    ]), [t]);
     const descriptionLanguageOptionValues = useMemo(
         () => new Set(descriptionLanguageOptions.map(option => option.value)),
         [descriptionLanguageOptions]
@@ -392,7 +400,7 @@ export default function PluginSettings() {
 
             if (isRequired) {
                 const tooltipText = p.required || !depMap[p.name]
-                    ? "This plugin is required for Chocord to function."
+                    ? t("This plugin is required for Chocord to function.")
                     : <PluginDependencyList deps={depMap[p.name]?.filter(d => settings.plugins[d].enabled)} />;
 
                 requiredPlugins.push(
@@ -444,7 +452,7 @@ export default function PluginSettings() {
 
             if (!result) {
                 logger.error(`Error while stopping plugin ${plugin}`);
-                showErrorToast(`Error while stopping plugin ${plugin}`);
+                showErrorToast(t("Error while stopping plugin {plugin}", { plugin }));
                 continue;
             }
 
@@ -453,16 +461,16 @@ export default function PluginSettings() {
 
         if (restartNeeded) {
             Alerts.show({
-                title: "Restart Required",
+                title: t("Restart Required"),
                 body: (
                     <>
-                        <p style={{ textAlign: "center" }}>Some plugins require a restart to fully disable.</p>
-                        <p style={{ textAlign: "center" }}>Would you like to restart now?</p>
+                        <p style={{ textAlign: "center" }}>{t("Some plugins require a restart to fully disable.")}</p>
+                        <p style={{ textAlign: "center" }}>{t("Would you like to restart now?")}</p>
                     </>
                 ),
-                confirmText: "Restart Now",
-                cancelText: "Later",
-                onConfirm: restartWithVoiceCallWarning
+                confirmText: t("Restart Now"),
+                cancelText: t("Later"),
+                onConfirm: () => restartWithVoiceCallWarning(t)
             });
         }
     }
@@ -540,26 +548,26 @@ export default function PluginSettings() {
             </div>
 
             <HeadingTertiary className={classes(Margins.top20, Margins.bottom8)}>
-                Filters
+                {t("Filters")}
             </HeadingTertiary>
 
             <div className={classes(Margins.bottom20, cl("filter-controls"))}>
                 <ErrorBoundary noop>
-                    <TextInput autoFocus value={searchInput} placeholder="Search for a plugin..." onChange={onSearch} />
+                    <TextInput autoFocus value={searchInput} placeholder={t("Search for a plugin...")} onChange={onSearch} />
                 </ErrorBoundary>
                 <div>
                     <ErrorBoundary noop>
                         <Select
                             options={[
-                                { label: "Show All", value: SearchStatus.ALL, default: true },
-                                { label: "Show Enabled", value: SearchStatus.ENABLED },
-                                { label: "Show Disabled", value: SearchStatus.DISABLED },
-                                { label: "Show EquicordPlugins", value: SearchStatus.EQUICORD },
-                                { label: "Show ChocordPlugins", value: SearchStatus.CHOCORD },
-                                { label: "Show Vencord", value: SearchStatus.VENCORD },
-                                { label: "Show New", value: SearchStatus.NEW },
-                                hasUserPlugins && { label: "Show UserPlugins", value: SearchStatus.USER_PLUGINS },
-                                { label: "Show API Plugins", value: SearchStatus.API_PLUGINS },
+                                { label: t("Show All"), value: SearchStatus.ALL, default: true },
+                                { label: t("Show Enabled"), value: SearchStatus.ENABLED },
+                                { label: t("Show Disabled"), value: SearchStatus.DISABLED },
+                                { label: t("Show EquicordPlugins"), value: SearchStatus.EQUICORD },
+                                { label: t("Show ChocordPlugins"), value: SearchStatus.CHOCORD },
+                                { label: t("Show Vencord"), value: SearchStatus.VENCORD },
+                                { label: t("Show New"), value: SearchStatus.NEW },
+                                hasUserPlugins && { label: t("Show UserPlugins"), value: SearchStatus.USER_PLUGINS },
+                                { label: t("Show API Plugins"), value: SearchStatus.API_PLUGINS },
                             ].filter(isTruthy)}
                             serialize={String}
                             select={onStatusChange}
@@ -581,7 +589,7 @@ export default function PluginSettings() {
                 </div>
             </div>
 
-            <HeadingTertiary className={Margins.top20}>Plugins</HeadingTertiary>
+            <HeadingTertiary className={Margins.top20}>{t("Plugins")}</HeadingTertiary>
 
             {pluginEntries.length || requiredPlugins.length
                 ? (
@@ -602,7 +610,7 @@ export default function PluginSettings() {
                                     </section>
                                 );
                             })
-                            : <Paragraph>No plugins meet the search criteria.</Paragraph>
+                            : <Paragraph>{t("No plugins meet the search criteria.")}</Paragraph>
                         }
                         {visibleCount < pluginEntries.length && (
                             <div ref={sentinelRef} style={{ height: 32 }} />
@@ -620,7 +628,7 @@ export default function PluginSettings() {
             <div className={cl("grid")}>
                 {requiredPlugins.length
                     ? requiredPlugins
-                    : <Paragraph>No plugins meet the search criteria.</Paragraph>
+                    : <Paragraph>{t("No plugins meet the search criteria.")}</Paragraph>
                 }
             </div>
         </SettingsTab >
@@ -628,9 +636,11 @@ export default function PluginSettings() {
 }
 
 export function PluginDependencyList({ deps }: { deps: string[]; }) {
+    const t = useSettingsI18n();
+
     return (
         <>
-            <Paragraph>This plugin is required by:</Paragraph>
+            <Paragraph>{t("This plugin is required by:")}</Paragraph>
             {deps.map((dep: string) => <Paragraph key={dep} className={cl("dep-text")}>{dep}</Paragraph>)}
         </>
     );

@@ -19,8 +19,9 @@ import {
 import { gitHashShort } from "@shared/vencordUserAgent";
 import { Devs } from "@utils/constants";
 import { isTruthy } from "@utils/guards";
+import { translateSettingsText as t } from "@utils/settingsI18n";
 import definePlugin, { IconProps, OptionType } from "@utils/types";
-import { findByPropsLazy, waitFor } from "@webpack";
+import { waitFor } from "@webpack";
 import { React } from "@webpack/common";
 import type { ComponentType, PropsWithChildren, ReactNode } from "react";
 
@@ -98,14 +99,14 @@ interface SettingsLayoutBuilder {
 const settings = definePluginSettings({
     settingsLocation: {
         type: OptionType.SELECT,
-        description: "Where to put the Chocord settings section",
+        description: t("Where to put the Chocord settings section"),
         options: [
-            { label: "At the very top", value: "top" },
-            { label: "Above the Nitro section", value: "aboveNitro", default: true },
-            { label: "Below the Nitro section", value: "belowNitro" },
-            { label: "Above Activity Settings", value: "aboveActivity" },
-            { label: "Below Activity Settings", value: "belowActivity" },
-            { label: "At the very bottom", value: "bottom" },
+            { label: t("At the very top"), value: "top" },
+            { label: t("Above the Nitro section"), value: "aboveNitro", default: true },
+            { label: t("Below the Nitro section"), value: "belowNitro" },
+            { label: t("Above Activity Settings"), value: "aboveActivity" },
+            { label: t("Below Activity Settings"), value: "belowActivity" },
+            { label: t("At the very bottom"), value: "bottom" },
         ] as { label: string; value: SettingsLocation; default?: boolean; }[]
     }
 });
@@ -219,51 +220,51 @@ export default definePlugin({
             buildEntry({
                 key: "equicord_main",
                 title: "Chocord",
-                panelTitle: "Chocord Settings",
+                panelTitle: t("Chocord Settings"),
                 Component: VencordTab,
                 Icon: MainSettingsIcon
             }),
             buildEntry({
                 key: "equicord_plugins",
-                title: "Plugins",
+                title: t("Plugins"),
                 Component: PluginsTab,
                 Icon: PluginsIcon
             }),
             buildEntry({
                 key: "equicord_themes",
-                title: "Themes",
+                title: t("Themes"),
                 Component: ThemesTab,
                 Icon: PaintbrushIcon
             }),
             !IS_UPDATER_DISABLED && UpdaterTab && buildEntry({
                 key: "equicord_updater",
-                title: "Updater",
-                panelTitle: "Chocord Updater",
+                title: t("Updater"),
+                panelTitle: t("Chocord Updater"),
                 Component: UpdaterTab,
                 Icon: UpdaterIcon
             }),
             buildEntry({
                 key: "equicord_changelog",
-                title: "Changelog",
+                title: t("Changelog"),
                 Component: ChangelogTab,
                 Icon: LogIcon,
             }),
             buildEntry({
                 key: "equicord_cloud",
-                title: "Cloud",
-                panelTitle: "Chocord Cloud",
+                title: t("Cloud"),
+                panelTitle: t("Chocord Cloud"),
                 Component: CloudTab,
                 Icon: CloudIcon
             }),
             buildEntry({
                 key: "equicord_backup_restore",
-                title: "Backup & Restore",
+                title: t("Backup & Restore"),
                 Component: BackupAndRestoreTab,
                 Icon: BackupRestoreIcon
             }),
             IS_DEV && PatchHelperTab && buildEntry({
                 key: "equicord_patch_helper",
-                title: "Patch Helper",
+                title: t("Patch Helper"),
                 Component: PatchHelperTab,
                 Icon: PatchHelperIcon
             }),
@@ -273,7 +274,7 @@ export default definePlugin({
         const equicordSection: SettingsLayoutNode = {
             key: "equicord_section",
             type: LayoutTypes.SECTION,
-            useTitle: () => "Chocord Settings",
+            useTitle: () => t("Chocord Settings"),
             buildLayout: () => equicordEntries
         };
 
@@ -327,11 +328,11 @@ export default definePlugin({
     getVersionInfo(support = true) {
         let version = "";
 
-        if (IS_DEV) version = "Dev Build";
-        if (IS_WEB) version = "Web";
+        if (IS_DEV) version = t("Dev Build");
+        if (IS_WEB) version = t("Web");
         if (IS_VESKTOP) version = `Vesktop v${VesktopNative.app.getVersion()}`;
         if (IS_EQUIBOP) version = `Equibop v${VesktopNative.app.getVersion()}`;
-        if (IS_STANDALONE) version = "Standalone";
+        if (IS_STANDALONE) version = t("Standalone");
 
         return support && version ? ` (${version})` : version;
     },
@@ -341,8 +342,8 @@ export default definePlugin({
 
         const rows = [`Chocord ${gitHashShort}${getVersionInfo()}`];
 
-        if (electronVersion) rows.push(`Electron ${electronVersion}`);
-        if (chromiumVersion) rows.push(`Chromium ${chromiumVersion}`);
+        if (electronVersion) rows.push(`${t("Electron")} ${electronVersion}`);
+        if (chromiumVersion) rows.push(`${t("Chromium")} ${chromiumVersion}`);
 
         return rows;
     },

@@ -25,6 +25,7 @@ import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings";
 import { Margins } from "@utils/margins";
 import { useAwaiter } from "@utils/react";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { getRepo, isNewer, UpdateLogger } from "@utils/updater";
 import { React } from "@webpack/common";
 
@@ -38,9 +39,10 @@ interface CommonProps {
 }
 
 function Updater() {
+    const t = useSettingsI18n();
     const settings = useSettings(["autoUpdate", "autoUpdateNotification"]);
 
-    const [repo, err, repoPending] = useAwaiter(getRepo, { fallbackValue: "Loading..." });
+    const [repo, err, repoPending] = useAwaiter(getRepo, { fallbackValue: t("Loading...") });
 
     React.useEffect(() => {
         if (err)
@@ -54,14 +56,14 @@ function Updater() {
 
     return (
         <SettingsTab>
-            <Heading className={Margins.top16}>Update Preferences</Heading>
+            <Heading className={Margins.top16}>{t("Update Preferences")}</Heading>
             <Paragraph className={Margins.bottom20}>
-                Control how Chocord keeps itself up to date. You can choose to update automatically in the background or be notified when new updates are available.
+                {t("Control how Chocord keeps itself up to date. You can choose to update automatically in the background or be notified when new updates are available.")}
             </Paragraph>
 
             <FormSwitch
-                title="Automatically update"
-                description="When enabled, Chocord will automatically download and install updates in the background without asking for confirmation. You'll need to restart Discord to apply the changes."
+                title={t("Automatically update")}
+                description={t("When enabled, Chocord will automatically download and install updates in the background without asking for confirmation. You'll need to restart Discord to apply the changes.")}
                 value={settings.autoUpdate}
                 onChange={(v: boolean) => settings.autoUpdate = v}
                 hideBorder
@@ -69,23 +71,23 @@ function Updater() {
             <FormSwitch
                 value={settings.autoUpdateNotification}
                 onChange={(v: boolean) => settings.autoUpdateNotification = v}
-                title="Get notified when an automatic update completes"
-                description="Receive a notification when Chocord finishes downloading an update in the background, so you know when to restart Discord."
+                title={t("Get notified when an automatic update completes")}
+                description={t("Receive a notification when Chocord finishes downloading an update in the background, so you know when to restart Discord.")}
                 disabled={!settings.autoUpdate}
                 hideBorder
             />
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Repository</Heading>
+            <Heading className={Margins.top20}>{t("Repository")}</Heading>
             <Paragraph className={Margins.bottom8}>
-                This is the GitHub repository where Chocord fetches updates from.
+                {t("This is the GitHub repository where Chocord fetches updates from.")}
             </Paragraph>
             <Paragraph color="text-subtle">
                 {repoPending
                     ? repo
                     : err
-                        ? "Failed to retrieve - check console"
+                        ? t("Failed to retrieve - check console")
                         : (
                             <Link href={repo}>
                                 {repo.split("/").slice(-2).join("/")}
@@ -97,7 +99,7 @@ function Updater() {
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Updates</Heading>
+            <Heading className={Margins.top20}>{t("Updates")}</Heading>
             {isNewer ? <Newer {...commonProps} /> : <Updatable {...commonProps} />}
         </SettingsTab>
     );
