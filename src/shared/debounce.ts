@@ -23,10 +23,61 @@
  * @param func The function to wrap
  * @param delay The delay in milliseconds
  */
-export function debounce<T extends Function>(func: T, delay = 300): T {
-    let timeout: NodeJS.Timeout;
-    return function (...args: any[]) {
+type AnyFunction = (...args: any[]) => any;
+
+export type DebouncedFunction<T extends AnyFunction> = T & {
+    cancel(): void;
+    flush(): void;
+};
+
+export function debounce<T extends AnyFunction>(func: T, delay = 300): DebouncedFunction<T> {
+    let timeout: NodeJS.Timeout | null = null;
+    let lastArgs: Parameters<T> | null = null;
+    let lastThis: ThisParameterType<T> | undefined;
+
+    const invoke = () => {
+        if (!lastArgs) return;
+
+        const args = lastArgs;
+        const thisArg = lastThis;
+
+        lastArgs = null;
+        lastThis = undefined;
+
+        func.apply(thisArg, args);
+    };
+
+    const debounced = function (this: ThisParameterType<T>, ...args: Parameters<T>) {
+        lastArgs = args;
+        lastThis = this;
+
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(() => {
+            timeout = null;
+            invoke();
+        }, delay);
+    } as DebouncedFunction<T>;
+
+    debounced.cancel = () => {
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = null;
+        }
+
+        lastArgs = null;
+        lastThis = undefined;
+    };
+
+    debounced.flush = () => {
+        if (!timeout) return;
+
         clearTimeout(timeout);
-        timeout = setTimeout(() => { func(...args); }, delay);
-    } as any;
+        timeout = null;
+        invoke();
+    };
+
+    return debounced;
 }

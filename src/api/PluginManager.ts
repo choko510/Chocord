@@ -52,6 +52,8 @@ export const PMLogger = logger;
 let enabledPluginsSubscribedFlux = false;
 const subscribedFluxEventsPlugins = new Set<string>();
 let pluginValuesCache: Plugin[] | null = null;
+type FluxHandler = Exclude<NonNullable<Plugin["flux"]>[string], undefined>;
+const pluginFluxWrappedHandlers = new WeakMap<Plugin, Map<string, { original: FluxHandler; wrapped: FluxHandler }>>();
 
 function getPluginValues(): Plugin[] {
     if (!pluginValuesCache) {
@@ -211,10 +213,24 @@ export function subscribePluginFluxEvents(p: Plugin, fluxDispatcher: typeof Flux
 
         logger.debug("Subscribing to flux events of plugin", p.name);
         for (const [event, handler] of Object.entries(p.flux)) {
-            const wrappedHandler = p.flux[event] = function () {
+            if (!handler) continue;
+
+            let wrappedHandlers = pluginFluxWrappedHandlers.get(p);
+            if (!wrappedHandlers) {
+                wrappedHandlers = new Map();
+                pluginFluxWrappedHandlers.set(p, wrappedHandlers);
+            }
+
+            const existingWrappedHandler = wrappedHandlers.get(event);
+            if (existingWrappedHandler?.original === handler) {
+                fluxDispatcher.subscribe(event as FluxEvents, existingWrappedHandler.wrapped);
+                continue;
+            }
+
+            const wrappedHandler: FluxHandler = function () {
                 if (p.name === "Encryptcord" && event === "MESSAGE_CREATE") return;
                 try {
-                    const res = handler!.apply(p, arguments as any);
+                    const res = handler.apply(p, arguments as any);
                     return res instanceof Promise
                         ? res.catch(e => logger.error(`${p.name}: Error while handling ${event}\n`, e))
                         : res;
@@ -222,6 +238,7 @@ export function subscribePluginFluxEvents(p: Plugin, fluxDispatcher: typeof Flux
                     logger.error(`${p.name}: Error while handling ${event}\n`, e);
                 }
             };
+            wrappedHandlers.set(event, { original: handler, wrapped: wrappedHandler });
 
             fluxDispatcher.subscribe(event as FluxEvents, wrappedHandler);
         }
@@ -233,8 +250,18 @@ export function unsubscribePluginFluxEvents(p: Plugin, fluxDispatcher: typeof Fl
         subscribedFluxEventsPlugins.delete(p.name);
 
         logger.debug("Unsubscribing from flux events of plugin", p.name);
+        const wrappedHandlers = pluginFluxWrappedHandlers.get(p);
+        if (wrappedHandlers?.size) {
+            for (const [event, { wrapped }] of wrappedHandlers) {
+                fluxDispatcher.unsubscribe(event as FluxEvents, wrapped);
+            }
+            return;
+        }
+
         for (const [event, handler] of Object.entries(p.flux)) {
-            fluxDispatcher.unsubscribe(event as FluxEvents, handler!);
+            if (handler) {
+                fluxDispatcher.unsubscribe(event as FluxEvents, handler);
+            }
         }
     }
 }

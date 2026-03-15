@@ -14,7 +14,7 @@ import { reporterData } from "debug/reporterData";
 
 import { traceFunctionWithResults } from "../debug/Tracer";
 import { AnyModuleFactory, AnyWebpackRequire, MaybePatchedModuleFactory, PatchedModuleFactory } from "./types";
-import { _blacklistBadModules, _initWebpack, factoryListeners, findModuleFactory, moduleListeners, waitForSubscriptions, wreq } from "./webpack";
+import { _blacklistBadModules, _initWebpack, factoryListeners, findModuleFactory, getFactoryString, moduleListeners, waitForSubscriptions, wreq } from "./webpack";
 
 export const patches = [] as Patch[];
 
@@ -533,7 +533,7 @@ function runFactoryWithWrap(patchedFactory: PatchedModuleFactory, thisArg: unkno
  * @returns The patched module factory
  */
 function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory): PatchedModuleFactory {
-    const originalFactoryCode = String(originalFactory);
+    const originalFactoryCode = getFactoryString(originalFactory);
     const isArrowFunction = originalFactoryCode.startsWith("(");
 
     // 0, prefix to turn it into an expression: 0,function(){} would be invalid syntax without the 0,

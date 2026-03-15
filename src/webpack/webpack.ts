@@ -58,7 +58,7 @@ const findCssClassesResultCache = new Map<string, Record<string, string>>();
 // Cache for module factory toString results to avoid expensive repeated serialization
 const factoryStringCache = new WeakMap<Function, string>();
 
-function getFactoryString(factory: Function): string {
+export function getFactoryString(factory: Function): string {
     let str = factoryStringCache.get(factory);
     if (str === undefined) {
         str = factory.toString();

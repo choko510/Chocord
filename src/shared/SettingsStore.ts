@@ -46,11 +46,34 @@ interface ProxyContext<T extends object = any> {
  * has support for global and path-based change listeners.
  */
 export class SettingsStore<T extends object> {
+    private static readonly MAX_PATH_STRING_CACHE_ENTRIES = 2048;
+
     private pathListeners = new Map<string, Set<(newData: any) => void>>();
     private prefixListeners = new Map<string, Set<(newData: any, path: string) => void>>();
     private globalListeners = new Set<(newData: T, path: string) => void>();
     private readonly proxyContexts = new WeakMap<any, ProxyContext<T>>();
     private readonly proxyCache = new WeakMap<object, any>();
+    private readonly pathStringCache = new Map<string, string>();
+
+    private buildPath(path: string, key: string | number | symbol) {
+        const keyString = String(key);
+        if (!path) {
+            return keyString;
+        }
+
+        const cacheKey = `${path}\u0000${keyString}`;
+        const cachedPath = this.pathStringCache.get(cacheKey);
+        if (cachedPath) {
+            return cachedPath;
+        }
+
+        const nextPath = `${path}.${keyString}`;
+        if (this.pathStringCache.size >= SettingsStore.MAX_PATH_STRING_CACHE_ENTRIES) {
+            this.pathStringCache.clear();
+        }
+        this.pathStringCache.set(cacheKey, nextPath);
+        return nextPath;
+    }
 
     private readonly proxyHandler: ProxyHandler<any> = (() => {
         const self = this;
@@ -84,7 +107,7 @@ export class SettingsStore<T extends object> {
                 }
 
                 if (typeof v === "object" && v !== null && !v[SYM_IS_PROXY]) {
-                    const getPath = `${path}${path && "."}${key}`;
+                    const getPath = self.buildPath(path, key);
                     return self.makeProxy(v, root, getPath);
                 }
 
@@ -112,7 +135,7 @@ export class SettingsStore<T extends object> {
 
                 const { root, path } = proxyContext;
 
-                const setPath = `${path}${path && "."}${key}`;
+                const setPath = self.buildPath(path, key);
                 if (rawProxyValue) {
                     self.proxyContexts.set(rawProxyValue, { root, path: setPath });
                 }
@@ -132,7 +155,7 @@ export class SettingsStore<T extends object> {
 
                 const { root, path } = proxyContext;
 
-                const deletePath = `${path}${path && "."}${key}`;
+                const deletePath = self.buildPath(path, key);
                 self.notifyListeners(deletePath, undefined, root);
 
                 return true;
@@ -232,6 +255,7 @@ export class SettingsStore<T extends object> {
         if (this.readOnly) throw new Error("SettingsStore is read-only");
 
         this.plain = value;
+        this.pathStringCache.clear();
         this.store = this.makeProxy(value);
 
         if (pathToNotify) {
