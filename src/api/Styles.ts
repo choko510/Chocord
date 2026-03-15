@@ -57,27 +57,34 @@ export function initStyles() {
     const vesktopCssNode = (IS_VESKTOP || IS_EQUIBOP) ? createAndAppendStyle("vesktop-css-core", coreStyleRootNode) : null;
     createAndAppendStyle("vencord-margins", coreStyleRootNode).textContent = generateMarginCss();
 
-    VencordNative.native.getRendererCss().then(css => rendererCssNode.textContent = css);
-    if (IS_DEV) {
-        VencordNative.native.onRendererCssUpdate(newCss => {
-            rendererCssNode.textContent = newCss;
-        });
-    }
+    // Parallelize independent async operations
+    const asyncTasks: Promise<void>[] = [
+        VencordNative.native.getRendererCss().then(css => { rendererCssNode.textContent = css; }),
+        VencordNative.themes.getSystemValues().then(values => {
+            const variables = Object.entries(values)
+                .filter(([, v]) => !!v)
+                .map(([k, v]) => `--${k}: ${v};`)
+                .join("");
+            osValuesNode.textContent = `:root{${variables}}`;
+        })
+    ];
 
     if (IS_VESKTOP && VesktopNative.app.getRendererCss || IS_EQUIBOP && VesktopNative.app.getRendererCss) {
-        VesktopNative.app.getRendererCss().then(css => vesktopCssNode!.textContent = css);
+        asyncTasks.push(
+            VesktopNative.app.getRendererCss().then(css => { vesktopCssNode!.textContent = css; })
+        );
         VesktopNative.app.onRendererCssUpdate(newCss => {
             vesktopCssNode!.textContent = newCss;
         });
     }
 
-    VencordNative.themes.getSystemValues().then(values => {
-        const variables = Object.entries(values)
-            .filter(([, v]) => !!v)
-            .map(([k, v]) => `--${k}: ${v};`)
-            .join("");
-        osValuesNode.textContent = `:root{${variables}}`;
-    });
+    Promise.all(asyncTasks);
+
+    if (IS_DEV) {
+        VencordNative.native.onRendererCssUpdate(newCss => {
+            rendererCssNode.textContent = newCss;
+        });
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -178,6 +185,9 @@ export const setStyleClassNames = (name: string, classNames: Record<string, stri
         compileStyle(style);
 };
 
+// Pre-compiled regex for style class name interpolation
+const styleClassNameRegex = /\[--(\w+)\]/g;
+
 /**
  * Updates the stylesheet after doing the following to the sourcecode:
  *   - Interpolate style classnames
@@ -187,8 +197,9 @@ export const setStyleClassNames = (name: string, classNames: Record<string, stri
 export const compileStyle = (style: Style) => {
     if (!style.dom) throw new Error("Style has no DOM element");
 
+    styleClassNameRegex.lastIndex = 0;
     style.dom.textContent = style.source
-        .replace(/\[--(\w+)\]/g, (match, name) => {
+        .replace(styleClassNameRegex, (match, name) => {
             const className = style.classNames[name];
             return className ? classNameToSelector(className) : match;
         });

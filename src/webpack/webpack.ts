@@ -47,6 +47,39 @@ export type PropsFilter = Array<string>;
 export type CodeFilter = Array<string | RegExp>;
 export type StoreNameFilter = string;
 
+const FILTER_CACHE_SEPARATOR = "\u0000";
+const MAX_FILTER_CACHE_ENTRIES = 512;
+
+const findByPropsFilterCache = new Map<string, FilterFn>();
+const findByPropsResultCache = new Map<string, any>();
+const findByClassNamesFilterCache = new Map<string, FilterFn>();
+const findCssClassesResultCache = new Map<string, Record<string, string>>();
+
+// Cache for module factory toString results to avoid expensive repeated serialization
+const factoryStringCache = new WeakMap<Function, string>();
+
+function getFactoryString(factory: Function): string {
+    let str = factoryStringCache.get(factory);
+    if (str === undefined) {
+        str = factory.toString();
+        factoryStringCache.set(factory, str);
+    }
+    return str;
+}
+
+function getFilterCacheKey(parts: readonly string[]) {
+    return parts.join(FILTER_CACHE_SEPARATOR);
+}
+
+function cacheFilter<T>(cache: Map<string, T>, key: string, value: T) {
+    if (cache.size >= MAX_FILTER_CACHE_ENTRIES) {
+        cache.clear();
+    }
+
+    cache.set(key, value);
+    return value;
+}
+
 export const stringMatches = (s: string, filter: CodeFilter) =>
     filter.every(f =>
         typeof f === "string"
@@ -59,10 +92,17 @@ export function makeClassNameRegex(className: string) {
 }
 
 export const filters = {
-    byProps: (...props: PropsFilter): FilterFn =>
-        props.length === 1
+    byProps: (...props: PropsFilter): FilterFn => {
+        const key = getFilterCacheKey(props);
+        const cached = findByPropsFilterCache.get(key);
+        if (cached) return cached;
+
+        const filter = props.length === 1
             ? m => m[props[0]] !== void 0
-            : m => props.every(p => m[p] !== void 0),
+            : m => props.every(p => m[p] !== void 0);
+
+        return cacheFilter(findByPropsFilterCache, key, filter);
+    },
 
     byCode: (...code: CodeFilter): FilterFn => {
         const parsedCode = code.map(canonicalizeMatch);
@@ -98,14 +138,20 @@ export const filters = {
     },
 
     byClassNames: (...classes: string[]): FilterFn => {
+        const key = getFilterCacheKey(classes);
+        const cached = findByClassNamesFilterCache.get(key);
+        if (cached) return cached;
+
         const regexes = classes.map(makeClassNameRegex);
 
-        return (m: any) => {
+        const filter = (m: any) => {
             if (typeof m !== "object") return false;
 
             const values = Object.values(m);
             return regexes.every(cls => values.some(v => typeof v === "string" && cls.test(v)));
         };
+
+        return cacheFilter(findByClassNamesFilterCache, key, filter);
     }
 };
 
@@ -119,6 +165,11 @@ export const factoryListeners = new Set<FactoryListernFn>();
 export function _initWebpack(webpackRequire: WebpackRequire) {
     wreq = webpackRequire;
     cache = webpackRequire.c;
+
+    findByPropsResultCache.clear();
+    findByPropsFilterCache.clear();
+    findByClassNamesFilterCache.clear();
+    findCssClassesResultCache.clear();
 
     Reflect.defineProperty(webpackRequire.c, Symbol.toStringTag, {
         value: "ModuleCache",
@@ -363,7 +414,7 @@ export const findModuleId = traceFunction("findModuleId", function findModuleId(
     code = code.map(canonicalizeMatch);
 
     for (const id in wreq.m) {
-        if (stringMatches(wreq.m[id].toString(), code)) return id;
+        if (stringMatches(getFactoryString(wreq.m[id]), code)) return id;
     }
 
     const err = new Error("Didn't find module with code(s):\n" + code.join("\n"));
@@ -438,9 +489,21 @@ export function findLazy(filter: FilterFn, warning: boolean = true) {
  * Find the first module that has the specified properties
  */
 export function findByProps(...props: PropsFilter) {
-    const res = find(filters.byProps(...props), { isIndirect: true });
+    const key = getFilterCacheKey(props);
+
+    // Fast path: trust cached result without re-validation for common case
+    const cached = findByPropsResultCache.get(key);
+    if (cached !== undefined) {
+        return cached;
+    }
+
+    const filter = filters.byProps(...props);
+    const res = find(filter, { isIndirect: true });
     if (!res)
         handleModuleNotFound("findByProps", ...props);
+    else
+        cacheFilter(findByPropsResultCache, key, res);
+
     return res;
 }
 
@@ -595,6 +658,12 @@ export function mapMangledCssClasses<S extends string>(mappedModule: object, cla
 }
 
 export function findCssClasses<S extends string>(...classes: S[]): Record<S, string> {
+    const key = getFilterCacheKey(classes);
+    const cached = findCssClassesResultCache.get(key);
+    if (cached) {
+        return cached as Record<S, string>;
+    }
+
     const res = find(filters.byClassNames(...classes), { isIndirect: true, topLevelOnly: true });
 
     if (!res) {
@@ -604,7 +673,9 @@ export function findCssClasses<S extends string>(...classes: S[]): Record<S, str
         return {} as Record<S, string>;
     }
 
-    return mapMangledCssClasses(res, classes);
+    const mapped = mapMangledCssClasses(res, classes);
+    cacheFilter(findCssClassesResultCache, key, mapped);
+    return mapped;
 }
 
 export function findCssClassesLazy<S extends string>(...classes: S[]) {
@@ -807,7 +878,7 @@ export function search(...code: CodeFilter) {
     for (const id in factories) {
         const factory = factories[id];
 
-        if (stringMatches(factory.toString(), code))
+        if (stringMatches(getFactoryString(factory), code))
             results[id] = factory;
     }
 

@@ -18,6 +18,32 @@ import { _blacklistBadModules, _initWebpack, factoryListeners, findModuleFactory
 
 export const patches = [] as Patch[];
 
+// Index map for O(1) lookup of patches with string-based `find`
+// Maps find string -> Set of indices in the patches array
+let patchStringIndex = new Map<string, Set<number>>();
+let patchIndexDirty = true;
+
+export function markPatchIndexDirty() {
+    patchIndexDirty = true;
+}
+
+function rebuildPatchIndex() {
+    if (!patchIndexDirty) return;
+    patchStringIndex = new Map();
+    for (let i = 0; i < patches.length; i++) {
+        const p = patches[i];
+        if (typeof p.find === "string") {
+            let set = patchStringIndex.get(p.find);
+            if (!set) {
+                set = new Set();
+                patchStringIndex.set(p.find, set);
+            }
+            set.add(i);
+        }
+    }
+    patchIndexDirty = false;
+}
+
 export const SYM_IS_PROXIED_FACTORY = Symbol("WebpackPatcher.isProxiedFactory");
 export const SYM_ORIGINAL_FACTORY = Symbol("WebpackPatcher.originalFactory");
 export const SYM_PATCHED_SOURCE = Symbol("WebpackPatcher.patchedSource");
@@ -434,13 +460,22 @@ function runFactoryWithWrap(patchedFactory: PatchedModuleFactory, thisArg: unkno
         return factoryReturn;
     }
 
-    for (const callback of moduleListeners) {
-        try {
-            callback(exports, module.id);
-        } catch (err) {
-            logger.error("Error in Webpack module listener:\n", err, callback);
+    if (moduleListeners.size) {
+        for (const callback of moduleListeners) {
+            try {
+                callback(exports, module.id);
+            } catch (err) {
+                logger.error("Error in Webpack module listener:\n", err, callback);
+            }
         }
     }
+
+    if (!waitForSubscriptions.size) {
+        return factoryReturn;
+    }
+
+    const isObjectExports = typeof exports === "object" && exports != null;
+    const objectExports = exports as Record<string, any>;
 
     for (const [filter, callback] of waitForSubscriptions) {
         try {
@@ -458,15 +493,15 @@ function runFactoryWithWrap(patchedFactory: PatchedModuleFactory, thisArg: unkno
             );
         }
 
-        if (typeof exports !== "object") {
+        if (!isObjectExports) {
             continue;
         }
 
-        for (const exportKey in exports) {
+        for (const exportKey in objectExports) {
             try {
                 // Some exports might have not been initialized yet due to circular imports, so try catch it.
                 try {
-                    var exportValue = exports[exportKey];
+                    var exportValue = objectExports[exportKey];
                 } catch {
                     continue;
                 }
@@ -508,8 +543,37 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
 
     const patchedBy = new Set<string>();
 
+    // Rebuild index if dirty
+    rebuildPatchIndex();
+
+    // Collect candidate patches while preserving original patch order.
+    // We still pre-filter string-based finds via the index map.
+    const candidateMask = new Uint8Array(patches.length);
+    for (const [findStr, indices] of patchStringIndex) {
+        if (code.includes(findStr)) {
+            for (const idx of indices) {
+                if (idx < candidateMask.length) {
+                    candidateMask[idx] = 1;
+                }
+            }
+        }
+    }
+    // Also include regex-based finds (we must iterate for those)
+    for (let i = 0; i < patches.length; i++) {
+        if (typeof patches[i].find !== "string") {
+            candidateMask[i] = 1;
+        }
+    }
+
+    // Track indices to remove after iteration
+    const indicesToRemove: number[] = [];
+    let codeChanged = false;
+
     for (let i = 0; i < patches.length; i++) {
         const patch = patches[i];
+        if (typeof patch.find === "string" && !candidateMask[i] && !codeChanged) {
+            continue;
+        }
 
         const buildNumber = getBuildNumber();
         const shouldCheckBuildNumber = buildNumber !== -1;
@@ -519,7 +583,7 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
             (patch.fromBuild != null && buildNumber < patch.fromBuild) ||
             (patch.toBuild != null && buildNumber > patch.toBuild)
         ) {
-            patches.splice(i--, 1);
+            indicesToRemove.push(i);
             continue;
         }
 
@@ -542,6 +606,7 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
         const previousCode = code;
         const previousFactory = originalFactory;
         let markedAsPatched = false;
+        let anyReplacementApplied = false;
 
         // We change all patch.replacement to array in PluginManager
         for (const replacement of patch.replacement as PatchReplacement[]) {
@@ -591,20 +656,15 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
                                 id: moduleId
                             });
 
+                        anyReplacementApplied = false;
                         break;
                     }
 
                     continue;
                 }
 
-                const pluginsList = [...patchedBy];
-                if (!patchedBy.has(patch.plugin)) {
-                    pluginsList.push(patch.plugin);
-                }
-
                 code = newCode;
-                patchedSource = `// Webpack Module ${String(moduleId)} - Patched by ${pluginsList.join(", ")}\n${code}\n//# sourceURL=file:///WebpackModule${String(moduleId)}`;
-                patchedFactory = (0, eval)(patchedSource);
+                anyReplacementApplied = true;
 
                 if (!patchedBy.has(patch.plugin)) {
                     patchedBy.add(patch.plugin);
@@ -642,6 +702,7 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
                         });
                     code = previousCode;
                     patchedFactory = previousFactory;
+                    anyReplacementApplied = false;
                     break;
                 }
 
@@ -650,9 +711,26 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
             }
         }
 
-        if (!patch.all) {
-            patches.splice(i--, 1);
+        // Batch eval: only eval once after all replacements for this patch are applied
+        if (anyReplacementApplied) {
+            const pluginsList = [...patchedBy];
+            patchedSource = `// Webpack Module ${String(moduleId)} - Patched by ${pluginsList.join(", ")}\n${code}\n//# sourceURL=file:///WebpackModule${String(moduleId)}`;
+            patchedFactory = (0, eval)(patchedSource);
+            codeChanged = true;
         }
+
+        if (!patch.all) {
+            indicesToRemove.push(i);
+        }
+    }
+
+    // Remove consumed patches in reverse order to maintain correct indices
+    if (indicesToRemove.length > 0) {
+        indicesToRemove.sort((a, b) => b - a);
+        for (const idx of indicesToRemove) {
+            patches.splice(idx, 1);
+        }
+        markPatchIndexDirty();
     }
 
     patchedFactory[SYM_ORIGINAL_FACTORY] = originalFactory;

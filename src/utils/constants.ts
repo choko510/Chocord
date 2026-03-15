@@ -1274,19 +1274,34 @@ export const EquicordDevs = Object.freeze({
     },
 } satisfies Record<string, Dev>);
 
-// iife so #__PURE__ works correctly
-export const VencordDevsById = /* #__PURE__*/ (() =>
-    Object.freeze(Object.fromEntries(
-        Object.entries(Devs)
-            .filter(d => d[1].id !== 0n)
-            .map(([_, v]) => [v.id, v] as const)
-    ))
-)() as Record<string, Dev>;
+function createLazyDevMap(devs: Record<string, Dev>): Record<string, Dev> {
+    const target: Record<string, Dev> = {};
+    let built = false;
 
-export const EquicordDevsById = /* #__PURE__*/ (() =>
-    Object.freeze(Object.fromEntries(
-        Object.entries(EquicordDevs)
-            .filter(d => d[1].id !== 0n)
-            .map(([_, v]) => [v.id, v] as const)
-    ))
-)() as Record<string, Dev>;
+    const ensureBuilt = () => {
+        if (!built) {
+            Object.assign(target, Object.fromEntries(
+                Object.values(devs)
+                    .filter(dev => dev.id !== 0n)
+                    .map(dev => [dev.id, dev] as const)
+            ));
+            Object.freeze(target);
+            built = true;
+        }
+
+        return target;
+    };
+
+    return new Proxy(target, {
+        get(_, key) { return Reflect.get(ensureBuilt(), key); },
+        has(_, key) { return Reflect.has(ensureBuilt(), key); },
+        ownKeys() { return Reflect.ownKeys(ensureBuilt()); },
+        getOwnPropertyDescriptor(_, key) { return Reflect.getOwnPropertyDescriptor(ensureBuilt(), key); },
+        set() { return false; },
+        defineProperty() { return false; },
+        deleteProperty() { return false; },
+    });
+}
+
+export const VencordDevsById: Record<string, Dev> = /* #__PURE__*/ createLazyDevMap(Devs);
+export const EquicordDevsById: Record<string, Dev> = /* #__PURE__*/ createLazyDevMap(EquicordDevs);

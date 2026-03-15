@@ -34,7 +34,7 @@ import { canonicalizeFind, canonicalizeReplacement } from "@utils/patches";
 import { Patch, Plugin, PluginDef, ReporterTestable, StartAt } from "@utils/types";
 import { FluxEvents } from "@vencord/discord-types";
 import { FluxDispatcher } from "@webpack/common";
-import { patches } from "@webpack/patcher";
+import { markPatchIndexDirty, patches } from "@webpack/patcher";
 
 import Plugins from "~plugins";
 export { Plugins as plugins };
@@ -51,13 +51,70 @@ export const PMLogger = logger;
 /** Whether we have subscribed to flux events of all the enabled plugins when FluxDispatcher was ready */
 let enabledPluginsSubscribedFlux = false;
 const subscribedFluxEventsPlugins = new Set<string>();
+let pluginValuesCache: Plugin[] | null = null;
+
+function getPluginValues(): Plugin[] {
+    if (!pluginValuesCache) {
+        pluginValuesCache = Object.values(Plugins);
+    }
+    return pluginValuesCache;
+}
+
+let enabledPluginsCache: Set<string> | null = null;
+
+function invalidateEnabledPluginsCache() {
+    enabledPluginsCache = null;
+}
+
+function isPluginMarkedEnabled(name: string) {
+    return (
+        Plugins[name]?.required ||
+        Plugins[name]?.isDependency ||
+        Settings.plugins[name]?.enabled
+    ) ?? false;
+}
+
+function getEnabledPlugins() {
+    if (enabledPluginsCache) {
+        return enabledPluginsCache;
+    }
+
+    const enabled = new Set<string>();
+    for (const plugin of getPluginValues()) {
+        if (isPluginMarkedEnabled(plugin.name)) {
+            enabled.add(plugin.name);
+        }
+    }
+
+    enabledPluginsCache = enabled;
+    return enabled;
+}
+
+SettingsStore.addGlobalChangeListener((_, path) => {
+    if (!enabledPluginsCache) return;
+    if (!path || path === "plugins") {
+        invalidateEnabledPluginsCache();
+        return;
+    }
+
+    if (!path.startsWith("plugins.")) {
+        return;
+    }
+
+    const pluginPath = path.slice("plugins.".length);
+    const settingSeparatorIndex = pluginPath.indexOf(".");
+    if (settingSeparatorIndex === -1) {
+        invalidateEnabledPluginsCache();
+        return;
+    }
+
+    if (pluginPath.slice(settingSeparatorIndex + 1) === "enabled") {
+        invalidateEnabledPluginsCache();
+    }
+});
 
 export function isPluginEnabled(p: string) {
-    return (
-        Plugins[p]?.required ||
-        Plugins[p]?.isDependency ||
-        Settings.plugins[p]?.enabled
-    ) ?? false;
+    return enabledPluginsCache?.has(p) ?? isPluginMarkedEnabled(p);
 }
 
 export function isPluginRequired(p: string) {
@@ -93,6 +150,7 @@ export function addPatch(newPatch: Omit<Patch, "plugin">, pluginName: string, pl
     patch.replacement = patch.replacement.filter(({ predicate }) => !predicate || predicate());
 
     patches.push(patch);
+    markPatchIndexDirty();
 }
 
 function isReporterTestable(p: Plugin, part: ReporterTestable) {
@@ -107,15 +165,14 @@ export function pluginRequiresRestart(p: Plugin) {
 
 export const startAllPlugins = traceFunction("startAllPlugins", function startAllPlugins(target: StartAt) {
     logger.info(`Starting plugins (stage ${target})`);
-    for (const name in Plugins) {
-        if (isPluginEnabled(name) && (!IS_REPORTER || isReporterTestable(Plugins[name], ReporterTestable.Start))) {
-            const p = Plugins[name];
+    for (const name of getEnabledPlugins()) {
+        const p = Plugins[name];
+        if (!p || (IS_REPORTER && !isReporterTestable(p, ReporterTestable.Start))) continue;
 
-            const startAt = p.startAt ?? StartAt.WebpackReady;
-            if (startAt !== target) continue;
+        const startAt = p.startAt ?? StartAt.WebpackReady;
+        if (startAt !== target) continue;
 
-            startPlugin(Plugins[name]);
-        }
+        startPlugin(p);
     }
 });
 
@@ -132,6 +189,7 @@ export function startDependenciesRecursive(p: Plugin) {
             // If the plugin has patches, don't start the plugin, just enable it.
             settings[d].enabled = true;
             dep.isDependency = true;
+            invalidateEnabledPluginsCache();
 
             if (pluginRequiresRestart(dep)) {
                 logger.warn(`Enabling dependency ${d} requires restart.`);
@@ -184,9 +242,10 @@ export function unsubscribePluginFluxEvents(p: Plugin, fluxDispatcher: typeof Fl
 export function subscribeAllPluginsFluxEvents(fluxDispatcher: typeof FluxDispatcher) {
     enabledPluginsSubscribedFlux = true;
 
-    for (const name in Plugins) {
-        if (!isPluginEnabled(name)) continue;
-        subscribePluginFluxEvents(Plugins[name], fluxDispatcher);
+    for (const name of getEnabledPlugins()) {
+        const plugin = Plugins[name];
+        if (!plugin) continue;
+        subscribePluginFluxEvents(plugin, fluxDispatcher);
     }
 }
 
@@ -347,8 +406,9 @@ export const stopPlugin = traceFunction("stopPlugin", function stopPlugin(p: Plu
 }, p => `stopPlugin ${p.name}`);
 
 export const initPluginManager = onlyOnce(function init() {
-    const pluginsValues = Object.values(Plugins);
     const settings = Settings.plugins;
+    const enabledPlugins = new Set(getEnabledPlugins());
+    const enabledPluginsQueue = [...enabledPlugins];
 
     const pluginKeysToBind: Array<keyof PluginDef & `${"on" | "render"}${string}`> = [
         "onBeforeMessageEdit", "onBeforeMessageSend", "onMessageClick",
@@ -363,7 +423,11 @@ export const initPluginManager = onlyOnce(function init() {
     //
     // FIXME: might need to revisit this if there's ever nested (dependencies of dependencies) dependencies since this only
     // goes for the top level and their children, but for now this works okay with the current API plugins
-    for (const p of pluginsValues) if (isPluginEnabled(p.name)) {
+    for (let i = 0; i < enabledPluginsQueue.length; i++) {
+        const pluginName = enabledPluginsQueue[i];
+        const p = Plugins[pluginName];
+        if (!p) continue;
+
         p.dependencies?.forEach(d => {
             const dep = Plugins[d];
 
@@ -380,6 +444,11 @@ export const initPluginManager = onlyOnce(function init() {
 
             settings[d].enabled = true;
             dep.isDependency = true;
+
+            if (!enabledPlugins.has(d)) {
+                enabledPlugins.add(d);
+                enabledPluginsQueue.push(d);
+            }
         });
 
         if (p.commands?.length) neededApiPlugins.add("CommandsAPI");
@@ -405,9 +474,12 @@ export const initPluginManager = onlyOnce(function init() {
     for (const p of neededApiPlugins) {
         Plugins[p].isDependency = true;
         settings[p].enabled = true;
+        enabledPlugins.add(p);
     }
 
-    for (const p of pluginsValues) {
+    enabledPluginsCache = enabledPlugins;
+
+    for (const p of getPluginValues()) {
         if (p.settings) {
             p.options ??= {};
 
@@ -428,7 +500,7 @@ export const initPluginManager = onlyOnce(function init() {
             }
         }
 
-        if (p.patches && isPluginEnabled(p.name)) {
+        if (p.patches && enabledPlugins.has(p.name)) {
             if (!IS_REPORTER || isReporterTestable(p, ReporterTestable.Patches)) {
                 for (const patch of p.patches) {
                     addPatch(patch, p.name);

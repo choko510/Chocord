@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import { debounce } from "@shared/debounce";
 import { SettingsStore as SettingsStoreClass } from "@shared/SettingsStore";
 import { Logger } from "@utils/Logger";
 import { mergeDefaults } from "@utils/mergeDefaults";
@@ -194,9 +195,28 @@ export const SettingsStore = new SettingsStoreClass(settings, {
 });
 
 if (!IS_REPORTER) {
+    let hasQueuedWrite = false;
+    let queuedPath: string | undefined;
+    const flushSettingsWrite = debounce(() => {
+        if (!hasQueuedWrite) return;
+
+        hasQueuedWrite = false;
+        const pathToNotify = queuedPath;
+        queuedPath = undefined;
+        void VencordNative.settings.set(SettingsStore.plain, pathToNotify);
+    }, 300);
+
     SettingsStore.addGlobalChangeListener((_, path) => {
         SettingsStore.plain.cloud.settingsSyncVersion = Date.now();
-        VencordNative.settings.set(SettingsStore.plain, path);
+
+        if (!hasQueuedWrite) {
+            queuedPath = path;
+        } else if (queuedPath !== path) {
+            queuedPath = undefined;
+        }
+
+        hasQueuedWrite = true;
+        flushSettingsWrite();
     });
 }
 
@@ -227,9 +247,12 @@ export const Settings = SettingsStore.store;
 export function useSettings(paths?: UseSettings<Settings>[]) {
     const [, forceUpdate] = React.useReducer(() => ({}), {});
 
+    // Stabilize paths reference to avoid re-subscribing every render
+    const stablePaths = React.useMemo(() => paths, [paths?.join("\0")]);
+
     useEffect(() => {
-        if (paths) {
-            paths.forEach(p => {
+        if (stablePaths) {
+            stablePaths.forEach(p => {
                 if (p.endsWith(".*")) {
                     SettingsStore.addPrefixChangeListener(p.slice(0, -2), forceUpdate);
                 } else {
@@ -237,7 +260,7 @@ export function useSettings(paths?: UseSettings<Settings>[]) {
                 }
             });
 
-            return () => paths.forEach(p => {
+            return () => stablePaths.forEach(p => {
                 if (p.endsWith(".*")) {
                     SettingsStore.removePrefixChangeListener(p.slice(0, -2), forceUpdate);
                 } else {
@@ -248,7 +271,7 @@ export function useSettings(paths?: UseSettings<Settings>[]) {
             SettingsStore.addGlobalChangeListener(forceUpdate);
             return () => SettingsStore.removeGlobalChangeListener(forceUpdate);
         }
-    }, [paths]);
+    }, [stablePaths]);
 
     return SettingsStore.store;
 }

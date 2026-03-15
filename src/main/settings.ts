@@ -8,7 +8,7 @@ import type { Settings } from "@api/Settings";
 import { IpcEvents } from "@shared/IpcEvents";
 import { SettingsStore } from "@shared/SettingsStore";
 import { mergeDefaults } from "@utils/mergeDefaults";
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 
 import { NATIVE_SETTINGS_FILE, SETTINGS_DIR, SETTINGS_FILE } from "./utils/constants";
@@ -28,12 +28,42 @@ function readSettings<T = object>(name: string, file: string): Partial<T> {
 
 export const RendererSettings = new SettingsStore(readSettings<Settings>("renderer", SETTINGS_FILE));
 
+function createBufferedSettingsWriter(name: string, file: string, getData: () => object) {
+    let pendingWrite: NodeJS.Timeout | null = null;
+
+    const writeSettings = () => {
+        try {
+            writeFileSync(file, JSON.stringify(getData(), null, 4));
+        } catch (e) {
+            console.error(`Failed to write ${name} settings`, e);
+        }
+    };
+
+    return {
+        queueWrite() {
+            if (pendingWrite) {
+                clearTimeout(pendingWrite);
+            }
+
+            pendingWrite = setTimeout(() => {
+                pendingWrite = null;
+                writeSettings();
+            }, 150);
+        },
+        flushPendingWrite() {
+            if (!pendingWrite) return;
+
+            clearTimeout(pendingWrite);
+            pendingWrite = null;
+            writeSettings();
+        }
+    };
+}
+
+const rendererSettingsWriter = createBufferedSettingsWriter("renderer", SETTINGS_FILE, () => RendererSettings.plain);
+
 RendererSettings.addGlobalChangeListener(() => {
-    try {
-        writeFileSync(SETTINGS_FILE, JSON.stringify(RendererSettings.plain, null, 4));
-    } catch (e) {
-        console.error("Failed to write renderer settings", e);
-    }
+    rendererSettingsWriter.queueWrite();
 });
 
 ipcMain.handle(IpcEvents.GET_SETTINGS_DIR, () => SETTINGS_DIR);
@@ -62,10 +92,16 @@ mergeDefaults(nativeSettings, DefaultNativeSettings);
 
 export const NativeSettings = new SettingsStore(nativeSettings as NativeSettings);
 
+const nativeSettingsWriter = createBufferedSettingsWriter("native", NATIVE_SETTINGS_FILE, () => NativeSettings.plain);
+
 NativeSettings.addGlobalChangeListener(() => {
-    try {
-        writeFileSync(NATIVE_SETTINGS_FILE, JSON.stringify(NativeSettings.plain, null, 4));
-    } catch (e) {
-        console.error("Failed to write native settings", e);
-    }
+    nativeSettingsWriter.queueWrite();
 });
+
+const flushPendingSettingsWrites = () => {
+    rendererSettingsWriter.flushPendingWrite();
+    nativeSettingsWriter.flushPendingWrite();
+};
+
+app.once("before-quit", flushPendingSettingsWrites);
+process.once("exit", flushPendingSettingsWrites);

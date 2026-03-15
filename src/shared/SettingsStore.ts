@@ -50,6 +50,7 @@ export class SettingsStore<T extends object> {
     private prefixListeners = new Map<string, Set<(newData: any, path: string) => void>>();
     private globalListeners = new Set<(newData: T, path: string) => void>();
     private readonly proxyContexts = new WeakMap<any, ProxyContext<T>>();
+    private readonly proxyCache = new WeakMap<object, any>();
 
     private readonly proxyHandler: ProxyHandler<any> = (() => {
         const self = this;
@@ -90,8 +91,10 @@ export class SettingsStore<T extends object> {
                 return v;
             },
             set(target, key: string, value) {
+                let rawProxyValue: object | null = null;
                 if (value?.[SYM_IS_PROXY]) {
-                    value = value[SYM_GET_RAW_TARGET];
+                    rawProxyValue = value[SYM_GET_RAW_TARGET];
+                    value = rawProxyValue;
                 }
 
                 if (target[key] === value) {
@@ -110,6 +113,9 @@ export class SettingsStore<T extends object> {
                 const { root, path } = proxyContext;
 
                 const setPath = `${path}${path && "."}${key}`;
+                if (rawProxyValue) {
+                    self.proxyContexts.set(rawProxyValue, { root, path: setPath });
+                }
                 self.notifyListeners(setPath, value, root);
 
                 return true;
@@ -150,22 +156,48 @@ export class SettingsStore<T extends object> {
     }
 
     private makeProxy(object: any, root: T = object, path = "") {
+        if (typeof object !== "object" || object == null) {
+            return object;
+        }
+
+        const cachedProxy = this.proxyCache.get(object);
+        if (cachedProxy) {
+            this.proxyContexts.set(object, {
+                root,
+                path
+            });
+            return cachedProxy;
+        }
+
         this.proxyContexts.set(object, {
             root,
             path
         });
 
-        return new Proxy(object, this.proxyHandler);
+        const proxy = new Proxy(object, this.proxyHandler);
+        this.proxyCache.set(object, proxy);
+        return proxy;
     }
 
-    private notifyPrefixListeners(pathString: string, pathElements: string[], value: any) {
-        for (let i = 1; i <= pathElements.length; i++) {
-            const prefix = pathElements.slice(0, i).join(".");
-            this.prefixListeners.get(prefix)?.forEach(cb => cb(value, pathString));
+    private notifyPrefixListeners(pathString: string, value: any) {
+        if (!this.prefixListeners.size) {
+            return;
         }
+
+        let end = -1;
+        do {
+            end = pathString.indexOf(".", end + 1);
+            const prefix = end === -1 ? pathString : pathString.slice(0, end);
+            this.prefixListeners.get(prefix)?.forEach(cb => cb(value, pathString));
+        } while (end !== -1);
     }
 
     private notifyListeners(pathStr: string, value: any, root: T) {
+        // Fast path: no listeners at all
+        if (!this.globalListeners.size && !this.pathListeners.size && !this.prefixListeners.size) {
+            return;
+        }
+
         const paths = pathStr.split(".");
 
         // Because we support any type of settings with OptionType.CUSTOM, and those objects get proxied recursively,
@@ -185,7 +217,7 @@ export class SettingsStore<T extends object> {
         }
 
         this.pathListeners.get(pathStr)?.forEach(cb => cb(value));
-        this.notifyPrefixListeners(pathStr, paths, value);
+        this.notifyPrefixListeners(pathStr, value);
     }
 
     /**
@@ -217,7 +249,7 @@ export class SettingsStore<T extends object> {
             }
 
             this.pathListeners.get(pathToNotify)?.forEach(cb => cb(v));
-            this.notifyPrefixListeners(pathToNotify, path, v);
+            this.notifyPrefixListeners(pathToNotify, v);
         }
 
         this.markAsChanged();

@@ -131,13 +131,19 @@ interface ContextMenuProps {
 }
 
 export function _usePatchContextMenu(props: ContextMenuProps) {
+    const contextMenuPatches = navPatches.get(props.navId);
+
+    // Fast path: no patches at all, return props unchanged
+    if (!contextMenuPatches?.size && !globalPatches.size) {
+        return props;
+    }
+
     props = {
         ...props,
         children: cloneMenuChildren(props.children),
     };
 
     props.contextMenuAPIArguments ??= [];
-    const contextMenuPatches = navPatches.get(props.navId);
 
     if (!Array.isArray(props.children)) props.children = [props.children];
 
