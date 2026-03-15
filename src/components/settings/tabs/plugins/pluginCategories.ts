@@ -160,6 +160,7 @@ export const PLUGIN_CATEGORIES = {
         "ListenBrainzRPC",
         "MediaPlaybackSpeed",
         "MusicControls",
+        "NicoVideoEmbeds",
         "PictureInPicture",
         "ReverseImageSearch",
         "RichMagnetLinks",
