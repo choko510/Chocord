@@ -378,14 +378,12 @@ function restoreTabState(tabId: number) {
     const cached = tabStateCache.get(tabId);
     if (!cached) return;
 
-    // restore scroll pos after delay to make sure content loaded
+    // restore scroll position on next paint so switching feels responsive
     requestAnimationFrame(() => {
-        setTimeout(() => {
-            const scrollContainer = getScrollContainer();
-            if (scrollContainer) {
-                scrollContainer.scrollTop = cached.scrollPosition;
-            }
-        }, 50);
+        const scrollContainer = getScrollContainer();
+        if (scrollContainer) {
+            scrollContainer.scrollTop = cached.scrollPosition;
+        }
     });
 }
 

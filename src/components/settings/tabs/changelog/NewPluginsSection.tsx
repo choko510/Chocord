@@ -121,7 +121,6 @@ export function NewPluginsSection({
                                             }}
                                             disabled={true}
                                             plugin={plugin}
-                                            isNew={true}
                                         />
                                     </Card>
                                 )}
@@ -141,7 +140,6 @@ export function NewPluginsSection({
                                 }}
                                 disabled={false}
                                 plugin={plugin}
-                                isNew={true}
                             />
                         </Card>
                     );

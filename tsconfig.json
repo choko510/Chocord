@@ -56,6 +56,9 @@
             ],
             "@equicordplugins/*": [
                 "./equicordplugins/*"
+            ],
+            "@chocordplugins/*": [
+                "./chocordplugins/*"
             ]
         },
         "plugins": [

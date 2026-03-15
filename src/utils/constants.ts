@@ -1272,6 +1272,26 @@ export const EquicordDevs = Object.freeze({
         name: "m.shl",
         id: 1025245410224263258n,
     },
+    TheLazySquid: {
+        name: "TheLazySquid",
+        id: 619261917352951815n,
+    },
+    BinaryQuantumSoul: {
+        name: "BinaryQuantumSoul",
+        id: 0n,
+    },
+    DaddyBoard: {
+        name: "DaddyBoard",
+        id: 0n,
+    },
+    DevilBro: {
+        name: "DevilBro",
+        id: 278543574059057154n,
+    },
+    samfundev: {
+        name: "samfundev",
+        id: 76052829285916672n,
+    },
 } satisfies Record<string, Dev>);
 
 function createLazyDevMap(devs: Record<string, Dev>): Record<string, Dev> {

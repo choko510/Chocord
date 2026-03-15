@@ -91,7 +91,6 @@ function NewPluginsModal({ modalProps, newPlugins, newSettings }: ModalComponent
                             onRestartNeeded={onRestartNeeded}
                             disabled={true}
                             plugin={p}
-                            isNew={newPlugins.has(p.name)}
                         />
                     )}
                 </Tooltip>
@@ -103,7 +102,6 @@ function NewPluginsModal({ modalProps, newPlugins, newSettings }: ModalComponent
                     disabled={false}
                     plugin={p}
                     key={p.name}
-                    isNew={newPlugins.has(p.name)}
                 />
             );
         }

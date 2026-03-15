@@ -26,6 +26,7 @@ import { Card } from "@components/Card";
 import { Divider } from "@components/Divider";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { HeadingTertiary } from "@components/Heading";
+import { DownArrow, RightArrow } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab } from "@components/settings";
 import { GoogleLanguages } from "@plugins/translate/languages";
@@ -43,7 +44,7 @@ import { JSX } from "react";
 import Plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
 
 import { PluginCard } from "./PluginCard";
-import { getPluginCategory, PLUGIN_CATEGORY_LABELS, PLUGIN_CATEGORY_ORDER, PluginCategory } from "./pluginCategories";
+import { createPluginCategoryResolver, PLUGIN_CATEGORY_LABELS, PLUGIN_CATEGORY_ORDER, PluginCategory } from "./pluginCategories";
 import { openWarningModal } from "./PluginModal";
 import { StockPluginsCard, UserPluginsCard } from "./PluginStatCards";
 import { UIElementsButton } from "./UIElements";
@@ -130,6 +131,7 @@ const enum SearchStatus {
     ENABLED,
     DISABLED,
     EQUICORD,
+    CHOCORD,
     VENCORD,
     NEW,
     USER_PLUGINS,
@@ -182,6 +184,16 @@ export default function PluginSettings() {
         [SelectedChannelStore],
         () => Boolean(SelectedChannelStore.getVoiceChannelId())
     );
+
+    const [collapsedCategories, setCollapsedCategories] = useState<Set<PluginCategory>>(new Set());
+    const toggleCategory = useCallback((category: PluginCategory) => {
+        setCollapsedCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(category)) next.delete(category);
+            else next.add(category);
+            return next;
+        });
+    }, []);
 
     React.useEffect(() => {
         return () => {
@@ -241,6 +253,16 @@ export default function PluginSettings() {
 
     const sortedPlugins = useMemo(() => Object.values(Plugins)
         .sort((a, b) => a.name.localeCompare(b.name)), []);
+    const resolvePluginCategory = useMemo(
+        () => createPluginCategoryResolver(
+            sortedPlugins.map(plugin => ({
+                name: plugin.name,
+                tags: plugin.tags,
+                folderName: PluginMeta[plugin.name]?.folderName
+            }))
+        ),
+        [sortedPlugins]
+    );
 
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
     const descriptionLanguageOptions = useMemo(() => ([
@@ -309,6 +331,9 @@ export default function PluginSettings() {
                 break;
             case SearchStatus.EQUICORD:
                 if (!PluginMeta[plugin.name].folderName.startsWith("src/equicordplugins/")) return false;
+                break;
+            case SearchStatus.CHOCORD:
+                if (!PluginMeta[plugin.name].folderName.startsWith("src/chocordplugins/")) return false;
                 break;
             case SearchStatus.VENCORD:
                 if (!PluginMeta[plugin.name].folderName.startsWith("src/plugins/")) return false;
@@ -386,13 +411,12 @@ export default function PluginSettings() {
                 );
             } else {
                 pluginEntries.push({
-                    category: getPluginCategory(p.name),
+                    category: resolvePluginCategory(p.name),
                     card: (
                         <PluginCard
                             onRestartNeeded={handleRestartNeeded}
                             disabled={false}
                             plugin={p}
-                            isNew={newPluginsSet?.has(p.name)}
                             descriptionLanguage={selectedDescriptionLanguage}
                             key={p.name}
                         />
@@ -401,7 +425,7 @@ export default function PluginSettings() {
             }
         }
         return { pluginEntries, requiredPlugins };
-    }, [sortedPlugins, searchValue, newPluginsSet, depMap, settings.plugins, pluginFilter, handleRestartNeeded, selectedDescriptionLanguage]);
+    }, [sortedPlugins, searchValue, newPluginsSet, depMap, settings.plugins, pluginFilter, handleRestartNeeded, selectedDescriptionLanguage, resolvePluginCategory]);
 
     function resetCheckAndDo() {
         let restartNeeded = false;
@@ -530,7 +554,8 @@ export default function PluginSettings() {
                                 { label: "Show All", value: SearchStatus.ALL, default: true },
                                 { label: "Show Enabled", value: SearchStatus.ENABLED },
                                 { label: "Show Disabled", value: SearchStatus.DISABLED },
-                                { label: "Show Chocord", value: SearchStatus.EQUICORD },
+                                { label: "Show EquicordPlugins", value: SearchStatus.EQUICORD },
+                                { label: "Show ChocordPlugins", value: SearchStatus.CHOCORD },
                                 { label: "Show Vencord", value: SearchStatus.VENCORD },
                                 { label: "Show New", value: SearchStatus.NEW },
                                 hasUserPlugins && { label: "Show UserPlugins", value: SearchStatus.USER_PLUGINS },
@@ -562,14 +587,21 @@ export default function PluginSettings() {
                 ? (
                     <>
                         {groupedVisiblePlugins.length
-                            ? groupedVisiblePlugins.map(({ category, cards }) => (
-                                <section key={category} className={cl("category-section")}>
-                                    <HeadingTertiary className={cl("category-heading")}>
-                                        {PLUGIN_CATEGORY_LABELS[category]} ({cards.length})
-                                    </HeadingTertiary>
-                                    <div className={cl("grid")}>{cards}</div>
-                                </section>
-                            ))
+                            ? groupedVisiblePlugins.map(({ category, cards }) => {
+                                const isCollapsed = collapsedCategories.has(category);
+                                return (
+                                    <section key={category} className={cl("category-section")}>
+                                        <HeadingTertiary
+                                            className={classes(cl("category-heading"), isCollapsed && cl("category-collapsed"))}
+                                            onClick={() => toggleCategory(category)}
+                                        >
+                                            {isCollapsed ? <RightArrow className={cl("category-icon")} /> : <DownArrow className={cl("category-icon")} />}
+                                            {PLUGIN_CATEGORY_LABELS[category]} ({cards.length})
+                                        </HeadingTertiary>
+                                        {!isCollapsed && <div className={cl("grid")}>{cards}</div>}
+                                    </section>
+                                );
+                            })
                             : <Paragraph>No plugins meet the search criteria.</Paragraph>
                         }
                         {visibleCount < pluginEntries.length && (

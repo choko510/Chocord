@@ -36,7 +36,6 @@ interface Props {
     enabled: boolean;
     setEnabled: (enabled: boolean) => void;
     disabled?: boolean;
-    isNew?: boolean;
     onMouseEnter?: MouseEventHandler<HTMLDivElement>;
     onMouseLeave?: MouseEventHandler<HTMLDivElement>;
 
@@ -52,7 +51,6 @@ interface Props {
 
 export function OnlineThemeCard({
     disabled,
-    isNew,
     name,
     infoButton,
     footer,
@@ -101,7 +99,6 @@ export function OnlineThemeCard({
                                 )}
                             </div>
                         </div>
-                        {isNew && <Badge text="NEW" variant="danger" />}
                     </BaseText>
 
                     {!!author && (

@@ -252,10 +252,8 @@ export default definePlugin({
         // Clear bookmark viewing mode when navigating to a regular channel
         ChannelTabsUtils.clearBookmarkViewingMode();
 
-        // wait for discord to update channel data
-        requestAnimationFrame(() => {
-            handleChannelSwitch({ guildId, channelId });
-        });
+        // Apply immediately so tab selection keeps up with rapid channel switches.
+        handleChannelSwitch({ guildId, channelId });
     },
 
     util: ChannelTabsUtils,

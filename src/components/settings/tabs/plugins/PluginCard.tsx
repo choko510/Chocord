@@ -6,6 +6,7 @@
 
 import { showNotice } from "@api/Notices";
 import { isPluginEnabled, pluginRequiresRestart, startDependenciesRecursive, startPlugin, stopPlugin } from "@api/PluginManager";
+import { useSettings } from "@api/Settings";
 import { CogWheel, InfoIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { classNameFactory } from "@utils/css";
@@ -13,7 +14,6 @@ import { Logger } from "@utils/Logger";
 import { onlyOnce } from "@utils/onlyOnce";
 import { OptionType, Plugin } from "@utils/types";
 import { React, showToast, Toasts } from "@webpack/common";
-import { Settings } from "Vencord";
 
 import { PluginMeta } from "~plugins";
 
@@ -79,16 +79,17 @@ interface PluginCardProps extends React.HTMLProps<HTMLDivElement> {
     plugin: Plugin;
     disabled?: boolean;
     onRestartNeeded(name: string, key: string): void;
-    isNew?: boolean;
     descriptionLanguage?: string;
     onMouseEnter?: React.MouseEventHandler<HTMLDivElement>;
     onMouseLeave?: React.MouseEventHandler<HTMLDivElement>;
 }
 
-export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, onMouseLeave, isNew, descriptionLanguage }: PluginCardProps) {
-    const settings = Settings.plugins[plugin.name];
+export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, onMouseLeave, descriptionLanguage }: PluginCardProps) {
+    const settingsStore = useSettings([`plugins.${plugin.name}.enabled` as any]);
+    const settings = settingsStore.plugins[plugin.name];
     const pluginMeta = PluginMeta[plugin.name];
     const isEquicordPlugin = pluginMeta.folderName.startsWith("src/equicordplugins/") ?? false;
+    const isChocordPlugin = pluginMeta.folderName.startsWith("src/chocordplugins/") ?? false;
     const isVencordPlugin = pluginMeta.folderName.startsWith("src/plugins/") ?? false;
     const isUserPlugin = pluginMeta?.userPlugin ?? false;
     const isModifiedPlugin = plugin.isModified ?? false;
@@ -189,7 +190,13 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
         {
             condition: isEquicordPlugin,
             src: "https://equicord.org/assets/favicon.png",
-            alt: "Chocord",
+            alt: "EquicordPlugins",
+            title: "EquicordPlugins Plugin"
+        },
+        {
+            condition: isChocordPlugin,
+            src: "https://equicord.org/assets/favicon.png",
+            alt: "ChocordPlugins",
             title: "Chocord Plugin"
         },
         {
@@ -224,7 +231,6 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             sourceBadge={sourceBadge}
             tooltip={tooltip}
             description={translatedDescription}
-            isNew={isNew}
             enabled={isEnabled()}
             setEnabled={toggleEnabled}
             disabled={disabled}
