@@ -167,6 +167,6 @@ export const AudioPlayer = $AudioPlayer;
 export const UserArea = $UserArea;
 
 /**
- * Just used to identify if user is on Equicord as Vencord doesn't have this.
+ * Just used to identify if user is on Chocord as Vencord doesn't have this.
  */
 export const isEquicord = true;

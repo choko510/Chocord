@@ -55,6 +55,7 @@ const UserRecord: Constructor<Partial<User>> = proxyLazy(() => UserStore.getCurr
 interface PluginModalProps extends ModalProps {
     plugin: Plugin;
     onRestartNeeded(key: string): void;
+    descriptionOverride?: string;
 }
 
 export function makeDummyUser(user: { username: string; id?: string; avatar?: string; }) {
@@ -74,7 +75,7 @@ export function makeDummyUser(user: { username: string; id?: string; avatar?: st
     return newUser;
 }
 
-export default function PluginModal({ plugin, onRestartNeeded, onClose, transitionState }: PluginModalProps) {
+export default function PluginModal({ plugin, onRestartNeeded, onClose, transitionState, descriptionOverride }: PluginModalProps) {
     const pluginSettings = useSettings([`plugins.${plugin.name}.*`]).plugins[plugin.name];
     const hasSettings = Boolean(pluginSettings && plugin.options && !isObjectEmpty(plugin.options));
 
@@ -166,7 +167,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
             <ModalHeader separator={false} className={cl("header")}>
                 <div className={cl("header-content")}>
                     <BaseText size="lg" weight="semibold" className={cl("title")}>{plugin.name}</BaseText>
-                    <BaseText size="sm" className={cl("description")}>{plugin.description}</BaseText>
+                    <BaseText size="sm" className={cl("description")}>{descriptionOverride ?? plugin.description}</BaseText>
                     {!!plugin.settingsAboutComponent && (
                         <div className={Margins.top8}>
                             <ErrorBoundary message="An error occurred while rendering this plugin's custom Info Component">
@@ -252,12 +253,13 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
     );
 }
 
-export function openPluginModal(plugin: Plugin, onRestartNeeded?: (pluginName: string, key: string) => void) {
+export function openPluginModal(plugin: Plugin, onRestartNeeded?: (pluginName: string, key: string) => void, descriptionOverride?: string) {
     openModal(modalProps => (
         <PluginModal
             {...modalProps}
             plugin={plugin}
             onRestartNeeded={(key: string) => onRestartNeeded?.(plugin.name, key)}
+            descriptionOverride={descriptionOverride}
         />
     ));
 }

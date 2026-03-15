@@ -23,6 +23,18 @@
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
+.vc-plugins-category-section {
+    margin-top: 20px;
+}
+
+.vc-plugins-category-section:first-of-type {
+    margin-top: 12px;
+}
+
+.vc-plugins-category-heading {
+    margin-bottom: 10px;
+}
+
 .vc-plugins-info-button {
     height: 24px;
     width: 24px;
@@ -45,7 +57,7 @@
     display: grid;
     height: 40px;
     gap: 10px;
-    grid-template-columns: 1fr 150px;
+    grid-template-columns: minmax(0, 1fr) 150px 220px;
 }
 
 .vc-plugins-dep-name {

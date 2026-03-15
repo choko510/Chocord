@@ -1,6 +1,6 @@
 # Introduction
 
-Equicord is a community project and welcomes any kind of contribution from anyone!
+Chocord is a community project and welcomes any kind of contribution from anyone!
 
 We have development documentation for new contributors, which can be found at <https://docs.equicord.org>.
 
@@ -32,7 +32,7 @@ Before starting your plugin:
 
 ## Plugin Rules
 
-To keep Equicord stable, secure and maintainable, all plugins must follow these rules:
+To keep Chocord stable, secure and maintainable, all plugins must follow these rules:
 1. No simple slash-command plugins (e.g. `/cat`). If applicable, create a [user-installable Discord app](https://discord.com/developers/docs/change-log#userinstallable-apps-preview) instead.
 2. No simple text replacement plugins (the built-in TextReplace plugin already covers this).
 3. No raw DOM manipulation — always use proper patches and React.
@@ -47,9 +47,9 @@ To keep Equicord stable, secure and maintainable, all plugins must follow these 
 
 **Plugins that violate any of these rules will not be accepted.**
 
-## Improving Equicord Itself
+## Improving Chocord Itself
 
-If you want to improve Equicord beyond plugins, such as internal features or performance improvements, you are welcome to open a feature request so it can be discussed.
+If you want to improve Chocord beyond plugins, such as internal features or performance improvements, you are welcome to open a feature request so it can be discussed.
 
 Bug fixes, refactors, and documentation improvements are also highly appreciated!
 

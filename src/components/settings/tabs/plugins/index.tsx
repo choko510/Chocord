@@ -28,6 +28,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab } from "@components/settings";
+import { GoogleLanguages } from "@plugins/translate/languages";
 import { debounce } from "@shared/debounce";
 import { ChangeList } from "@utils/ChangeList";
 import { classNameFactory } from "@utils/css";
@@ -36,18 +37,21 @@ import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { useAwaiter, useIntersection } from "@utils/react";
-import { Alerts, lodash, Parser, React, Select, TextInput, Toasts, Tooltip, useCallback, useMemo, useState } from "@webpack/common";
+import { Alerts, lodash, Parser, React, Select, SelectedChannelStore, TextInput, Toasts, Tooltip, useCallback, useMemo, useState, useStateFromStores } from "@webpack/common";
 import { JSX } from "react";
 
 import Plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
 
 import { PluginCard } from "./PluginCard";
+import { getPluginCategory, PLUGIN_CATEGORY_LABELS, PLUGIN_CATEGORY_ORDER, PluginCategory } from "./pluginCategories";
 import { openWarningModal } from "./PluginModal";
 import { StockPluginsCard, UserPluginsCard } from "./PluginStatCards";
 import { UIElementsButton } from "./UIElements";
 
 export const cl = classNameFactory("vc-plugins-");
 export const logger = new Logger("PluginSettings", "#a6d189");
+const DESCRIPTION_TRANSLATION_DISABLED = "off";
+const DESCRIPTION_TRANSLATION_LANGUAGE_STORE_KEY = "Vencord_pluginDescriptionLanguage";
 
 function showErrorToast(message: string) {
     Toasts.show({
@@ -60,7 +64,27 @@ function showErrorToast(message: string) {
     });
 }
 
-function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetCheckAndDo }) {
+function restartWithVoiceCallWarning() {
+    if (!SelectedChannelStore.getVoiceChannelId()) {
+        location.reload();
+        return;
+    }
+
+    Alerts.show({
+        title: "You're in a voice call",
+        body: (
+            <>
+                <p style={{ textAlign: "center" }}>Restarting now will disconnect your current call.</p>
+                <p style={{ textAlign: "center" }}>Would you like to restart anyway?</p>
+            </>
+        ),
+        confirmText: "Restart Anyway",
+        cancelText: "Later",
+        onConfirm: () => location.reload()
+    });
+}
+
+function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetCheckAndDo, isInVoiceCall }) {
     return (
         <Card className={classes(cl("info-card"), required && "vc-warning-card")}>
             {required ? (
@@ -69,7 +93,12 @@ function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetC
                     <Paragraph className={cl("dep-text")}>
                         Restart now to apply new plugins and their settings
                     </Paragraph>
-                    <Button variant="primary" className={cl("restart-button")} onClick={() => location.reload()}>
+                    {isInVoiceCall && (
+                        <Paragraph className={cl("dep-text")}>
+                            You are in a voice call. Restarting now will disconnect it.
+                        </Paragraph>
+                    )}
+                    <Button variant="primary" className={cl("restart-button")} onClick={restartWithVoiceCallWarning}>
                         Restart
                     </Button>
                 </>
@@ -113,7 +142,7 @@ export const ExcludedReasons: Record<"web" | "discordDesktop" | "vesktop" | "equ
     vesktop: "Vesktop/Equibop apps",
     equibop: "Vesktop/Equibop apps",
     web: "Vesktop/Equibop apps & Discord web",
-    dev: "Developer version of Equicord"
+    dev: "Developer version of Chocord"
 };
 
 function ExcludedPluginsList({ search }: { search: string; }) {
@@ -141,13 +170,34 @@ function ExcludedPluginsList({ search }: { search: string; }) {
     );
 }
 
+interface PluginCardEntry {
+    category: PluginCategory;
+    card: JSX.Element;
+}
+
 export default function PluginSettings() {
     const settings = useSettings();
     const changes = React.useMemo(() => new ChangeList<string>(), []);
+    const isInVoiceCall = useStateFromStores(
+        [SelectedChannelStore],
+        () => Boolean(SelectedChannelStore.getVoiceChannelId())
+    );
 
     React.useEffect(() => {
         return () => {
             if (!changes.hasChanges) return;
+
+            if (SelectedChannelStore.getVoiceChannelId()) {
+                Toasts.show({
+                    message: "Plugin changes still require a restart. Restart was deferred because you're in a voice call.",
+                    type: Toasts.Type.MESSAGE,
+                    id: Toasts.genId(),
+                    options: {
+                        position: Toasts.Position.BOTTOM
+                    }
+                });
+                return;
+            }
 
             const allChanges = [...changes.getChanges()];
             const pluginNames = [...new Set(allChanges.map(s => s.split(":")[0]))];
@@ -170,7 +220,7 @@ export default function PluginSettings() {
                 ),
                 confirmText: "Restart now",
                 cancelText: "Later!",
-                onConfirm: () => location.reload()
+                onConfirm: restartWithVoiceCallWarning
             });
         };
     }, []);
@@ -193,6 +243,17 @@ export default function PluginSettings() {
         .sort((a, b) => a.name.localeCompare(b.name)), []);
 
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
+    const descriptionLanguageOptions = useMemo(() => ([
+        { label: "Original descriptions", value: DESCRIPTION_TRANSLATION_DISABLED, default: true },
+        ...Object.entries(GoogleLanguages)
+            .filter(([code]) => code !== "auto")
+            .map(([value, label]) => ({ label, value }))
+    ]), []);
+    const descriptionLanguageOptionValues = useMemo(
+        () => new Set(descriptionLanguageOptions.map(option => option.value)),
+        [descriptionLanguageOptions]
+    );
+    const [descriptionLanguage, setDescriptionLanguage] = useState<string>(DESCRIPTION_TRANSLATION_DISABLED);
 
     const [searchValue, setSearchValue] = useState({ value: "", status: SearchStatus.ALL });
     const [searchInput, setSearchInput] = useState("");
@@ -210,6 +271,30 @@ export default function PluginSettings() {
     const onStatusChange = useCallback((status: SearchStatus) => {
         setSearchValue(prev => ({ ...prev, status }));
     }, []);
+    const onDescriptionLanguageChange = useCallback((language: string) => {
+        setDescriptionLanguage(language);
+        void DataStore.set(DESCRIPTION_TRANSLATION_LANGUAGE_STORE_KEY, language)
+            .catch(error => logger.error("Failed to store plugin description translation language", error));
+    }, []);
+    const selectedDescriptionLanguage = descriptionLanguage === DESCRIPTION_TRANSLATION_DISABLED
+        ? void 0
+        : descriptionLanguage;
+
+    React.useEffect(() => {
+        let isMounted = true;
+        void DataStore.get(DESCRIPTION_TRANSLATION_LANGUAGE_STORE_KEY)
+            .then(storedLanguage => {
+                if (!isMounted || typeof storedLanguage !== "string" || !descriptionLanguageOptionValues.has(storedLanguage))
+                    return;
+
+                setDescriptionLanguage(storedLanguage);
+            })
+            .catch(error => logger.error("Failed to load plugin description translation language", error));
+
+        return () => {
+            isMounted = false;
+        };
+    }, [descriptionLanguageOptionValues]);
 
     const pluginFilter = useCallback((plugin: typeof Plugins[keyof typeof Plugins], newPluginsSet: Set<string> | null) => {
         const { status } = searchValue;
@@ -267,8 +352,8 @@ export default function PluginSettings() {
 
     const handleRestartNeeded = useCallback((name: string, key: string) => changes.handleChange(`${name}:${key}`), [changes]);
 
-    const { plugins, requiredPlugins } = useMemo(() => {
-        const plugins = [] as JSX.Element[];
+    const { pluginEntries, requiredPlugins } = useMemo(() => {
+        const pluginEntries = [] as PluginCardEntry[];
         const requiredPlugins = [] as JSX.Element[];
 
         const showApi = searchValue.status === SearchStatus.API_PLUGINS;
@@ -282,7 +367,7 @@ export default function PluginSettings() {
 
             if (isRequired) {
                 const tooltipText = p.required || !depMap[p.name]
-                    ? "This plugin is required for Equicord to function."
+                    ? "This plugin is required for Chocord to function."
                     : <PluginDependencyList deps={depMap[p.name]?.filter(d => settings.plugins[d].enabled)} />;
 
                 requiredPlugins.push(
@@ -294,24 +379,29 @@ export default function PluginSettings() {
                                 onRestartNeeded={handleRestartNeeded}
                                 disabled={true}
                                 plugin={p}
+                                descriptionLanguage={selectedDescriptionLanguage}
                             />
                         )}
                     </Tooltip>
                 );
             } else {
-                plugins.push(
-                    <PluginCard
-                        onRestartNeeded={handleRestartNeeded}
-                        disabled={false}
-                        plugin={p}
-                        isNew={newPluginsSet?.has(p.name)}
-                        key={p.name}
-                    />
-                );
+                pluginEntries.push({
+                    category: getPluginCategory(p.name),
+                    card: (
+                        <PluginCard
+                            onRestartNeeded={handleRestartNeeded}
+                            disabled={false}
+                            plugin={p}
+                            isNew={newPluginsSet?.has(p.name)}
+                            descriptionLanguage={selectedDescriptionLanguage}
+                            key={p.name}
+                        />
+                    )
+                });
             }
         }
-        return { plugins, requiredPlugins };
-    }, [sortedPlugins, searchValue, newPluginsSet, depMap, settings.plugins, pluginFilter, handleRestartNeeded]);
+        return { pluginEntries, requiredPlugins };
+    }, [sortedPlugins, searchValue, newPluginsSet, depMap, settings.plugins, pluginFilter, handleRestartNeeded, selectedDescriptionLanguage]);
 
     function resetCheckAndDo() {
         let restartNeeded = false;
@@ -348,7 +438,7 @@ export default function PluginSettings() {
                 ),
                 confirmText: "Restart Now",
                 cancelText: "Later",
-                onConfirm: () => location.reload()
+                onConfirm: restartWithVoiceCallWarning
             });
         }
     }
@@ -366,26 +456,49 @@ export default function PluginSettings() {
         const enabledUserPlugins = enabledPlugins.filter(p => PluginMeta[p].userPlugin).length;
         return { totalStockPlugins, totalUserPlugins, enabledStockPlugins, enabledUserPlugins, enabledPlugins };
     }, [settings.plugins]);
-    const pluginsToLoad = Math.min(36, plugins.length);
+    const pluginsToLoad = Math.min(36, pluginEntries.length);
     const [visibleCount, setVisibleCount] = React.useState(pluginsToLoad);
     const loadMore = React.useCallback(() => {
-        setVisibleCount(v => Math.min(v + pluginsToLoad, plugins.length));
-    }, [plugins.length]);
+        setVisibleCount(v => Math.min(v + pluginsToLoad, pluginEntries.length));
+    }, [pluginEntries.length]);
 
     const dLoadMore = useMemo(() => debounce(loadMore, 100), [loadMore]);
 
     const [sentinelRef, isSentinelVisible] = useIntersection();
     React.useEffect(() => {
-        if (isSentinelVisible && visibleCount < plugins.length) {
+        if (isSentinelVisible && visibleCount < pluginEntries.length) {
             dLoadMore();
         }
-    }, [isSentinelVisible, visibleCount, plugins.length, dLoadMore]);
+    }, [isSentinelVisible, visibleCount, pluginEntries.length, dLoadMore]);
 
-    const visiblePlugins = plugins.slice(0, visibleCount);
+    const visiblePluginEntries = pluginEntries.slice(0, visibleCount);
+    const groupedVisiblePlugins = useMemo(() => {
+        const groupedPlugins = new Map<PluginCategory, JSX.Element[]>();
+        for (const category of PLUGIN_CATEGORY_ORDER) {
+            groupedPlugins.set(category, []);
+        }
+
+        for (const { category, card } of visiblePluginEntries) {
+            groupedPlugins.get(category)?.push(card);
+        }
+
+        return PLUGIN_CATEGORY_ORDER
+            .map(category => ({
+                category,
+                cards: groupedPlugins.get(category) ?? []
+            }))
+            .filter(({ cards }) => cards.length > 0);
+    }, [visiblePluginEntries]);
 
     return (
         <SettingsTab>
-            <ReloadRequiredCard required={changes.hasChanges} enabledPlugins={enabledPlugins} openWarningModal={openWarningModal} resetCheckAndDo={resetCheckAndDo} />
+            <ReloadRequiredCard
+                required={changes.hasChanges}
+                enabledPlugins={enabledPlugins}
+                openWarningModal={openWarningModal}
+                resetCheckAndDo={resetCheckAndDo}
+                isInVoiceCall={isInVoiceCall}
+            />
 
             <div className={cl("stats-container")}>
                 <StockPluginsCard
@@ -417,7 +530,7 @@ export default function PluginSettings() {
                                 { label: "Show All", value: SearchStatus.ALL, default: true },
                                 { label: "Show Enabled", value: SearchStatus.ENABLED },
                                 { label: "Show Disabled", value: SearchStatus.DISABLED },
-                                { label: "Show Equicord", value: SearchStatus.EQUICORD },
+                                { label: "Show Chocord", value: SearchStatus.EQUICORD },
                                 { label: "Show Vencord", value: SearchStatus.VENCORD },
                                 { label: "Show New", value: SearchStatus.NEW },
                                 hasUserPlugins && { label: "Show UserPlugins", value: SearchStatus.USER_PLUGINS },
@@ -430,20 +543,36 @@ export default function PluginSettings() {
                         />
                     </ErrorBoundary>
                 </div>
+                <div>
+                    <ErrorBoundary noop>
+                        <Select
+                            options={descriptionLanguageOptions}
+                            serialize={String}
+                            select={onDescriptionLanguageChange}
+                            isSelected={v => v === descriptionLanguage}
+                            closeOnSelect={true}
+                        />
+                    </ErrorBoundary>
+                </div>
             </div>
 
             <HeadingTertiary className={Margins.top20}>Plugins</HeadingTertiary>
 
-            {plugins.length || requiredPlugins.length
+            {pluginEntries.length || requiredPlugins.length
                 ? (
                     <>
-                        <div className={cl("grid")}>
-                            {visiblePlugins.length
-                                ? visiblePlugins
-                                : <Paragraph>No plugins meet the search criteria.</Paragraph>
-                            }
-                        </div>
-                        {visibleCount < plugins.length && (
+                        {groupedVisiblePlugins.length
+                            ? groupedVisiblePlugins.map(({ category, cards }) => (
+                                <section key={category} className={cl("category-section")}>
+                                    <HeadingTertiary className={cl("category-heading")}>
+                                        {PLUGIN_CATEGORY_LABELS[category]} ({cards.length})
+                                    </HeadingTertiary>
+                                    <div className={cl("grid")}>{cards}</div>
+                                </section>
+                            ))
+                            : <Paragraph>No plugins meet the search criteria.</Paragraph>
+                        }
+                        {visibleCount < pluginEntries.length && (
                             <div ref={sentinelRef} style={{ height: 32 }} />
                         )}
                     </>

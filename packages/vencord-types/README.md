@@ -1,6 +1,6 @@
-# Equicord Types
+# Chocord Types
 
-Typings for Equicord's api, published to npm
+Typings for Chocord's api, published to npm
 
 ```sh
 npm i @equicord/types

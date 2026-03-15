@@ -18,7 +18,7 @@
 
 export const REACT_GLOBAL = "Vencord.Webpack.Common.React";
 
-// Equicord
+// Chocord
 export const SUPPORT_CHANNEL_ID = "1297590739911573585";
 export const GUILD_ID = "1173279886065029291";
 export const DONOR_ROLE_ID = "1173316879083896912";

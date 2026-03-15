@@ -1,0 +1,112 @@
+.vc-steam-store-embeds-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.vc-steam-store-embeds-card {
+    background: var(--background-base-lower);
+    border: 1px solid var(--input-border-default, var(--input-border));
+    border-radius: var(--radius-sm);
+    padding: 10px;
+}
+
+.vc-steam-store-embeds-top {
+    display: flex;
+    gap: 10px;
+}
+
+.vc-steam-store-embeds-image {
+    width: 130px;
+    height: 60px;
+    border-radius: var(--radius-xs);
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.vc-steam-store-embeds-image-fallback {
+    align-items: center;
+    background: var(--background-surface-high);
+    color: var(--text-muted);
+    display: flex;
+    font-size: 11px;
+    font-weight: 700;
+    justify-content: center;
+    letter-spacing: 0.08em;
+}
+
+.vc-steam-store-embeds-top-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.vc-steam-store-embeds-title {
+    color: var(--text-link);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none;
+    width: fit-content;
+}
+
+.vc-steam-store-embeds-title:hover {
+    text-decoration: underline;
+}
+
+.vc-steam-store-embeds-price {
+    color: var(--text-default);
+}
+
+.vc-steam-store-embeds-meta-grid {
+    display: grid;
+    gap: 8px 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 10px;
+}
+
+.vc-steam-store-embeds-meta-item {
+    min-width: 0;
+}
+
+.vc-steam-store-embeds-meta-label {
+    color: var(--text-muted);
+}
+
+.vc-steam-store-embeds-meta-value {
+    color: var(--text-default);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.vc-steam-store-embeds-description {
+    color: var(--text-muted);
+    line-height: 1.35;
+    margin-top: 10px;
+}
+
+.vc-steam-store-embeds-status {
+    color: var(--text-muted);
+}
+
+.vc-steam-store-embeds-status-error {
+    color: var(--text-feedback-critical);
+}
+
+@media (width <= 520px) {
+    .vc-steam-store-embeds-meta-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vc-steam-store-embeds-top {
+        flex-direction: column;
+    }
+
+    .vc-steam-store-embeds-image {
+        height: auto;
+        width: 100%;
+    }
+}

@@ -66,7 +66,7 @@ async function ensureBinary() {
 
     const res = await fetch(BASE_URL + filename, {
         headers: {
-            "User-Agent": "Equicord (https://github.com/Equicord/Equicord)",
+            "User-Agent": "Chocord (https://github.com/Chocord/Chocord)",
             "If-None-Match": etag
         }
     });

@@ -220,7 +220,7 @@ export interface PluginDef {
     renderMessagePopoverButton?: MessagePopoverButtonFactory;
 
     /**
-     * A Vencord plugin that is modified for extra features in Equicord
+     * A Vencord plugin that is modified for extra features in Chocord
      */
     isModified?: boolean;
 }

@@ -10,6 +10,7 @@ import { CogWheel, InfoIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings/AddonCard";
 import { classNameFactory } from "@utils/css";
 import { Logger } from "@utils/Logger";
+import { onlyOnce } from "@utils/onlyOnce";
 import { OptionType, Plugin } from "@utils/types";
 import { React, showToast, Toasts } from "@webpack/common";
 import { Settings } from "Vencord";
@@ -20,24 +21,113 @@ import { openPluginModal } from "./PluginModal";
 
 const logger = new Logger("PluginCard");
 const cl = classNameFactory("vc-plugins-");
+const DESCRIPTION_TRANSLATE_API_KEY = "AIzaSyDLEeFI5OtFBwYBIoK_jj5m32rZK5CkCXA";
+const translatedDescriptionCache = new Map<string, string>();
+const inflightDescriptionTranslations = new Map<string, Promise<string>>();
+const showTranslateErrorToast = onlyOnce(
+    () => showToast("Failed to translate some plugin descriptions.", Toasts.Type.FAILURE)
+);
+
+interface GoogleTranslationData {
+    translation: string;
+}
+
+function getDescriptionTranslationCacheKey(description: string, targetLanguage: string) {
+    return `${targetLanguage}:${description}`;
+}
+
+async function translateDescription(description: string, targetLanguage: string) {
+    const cacheKey = getDescriptionTranslationCacheKey(description, targetLanguage);
+    const cachedValue = translatedDescriptionCache.get(cacheKey);
+    if (cachedValue) return cachedValue;
+
+    const inflightTranslation = inflightDescriptionTranslations.get(cacheKey);
+    if (inflightTranslation) return inflightTranslation;
+
+    const translationPromise = (async () => {
+        const url = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
+            "params.client": "gtx",
+            "dataTypes": "TRANSLATION",
+            "key": DESCRIPTION_TRANSLATE_API_KEY,
+            "query.sourceLanguage": "auto",
+            "query.targetLanguage": targetLanguage,
+            "query.text": description,
+        });
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(
+                `Failed to translate plugin description (${targetLanguage})`
+                + `\n${response.status} ${response.statusText}`
+            );
+        }
+
+        const { translation }: GoogleTranslationData = await response.json();
+        translatedDescriptionCache.set(cacheKey, translation);
+        return translation;
+    })();
+
+    inflightDescriptionTranslations.set(cacheKey, translationPromise);
+    try {
+        return await translationPromise;
+    } finally {
+        inflightDescriptionTranslations.delete(cacheKey);
+    }
+}
+
 interface PluginCardProps extends React.HTMLProps<HTMLDivElement> {
     plugin: Plugin;
     disabled?: boolean;
     onRestartNeeded(name: string, key: string): void;
     isNew?: boolean;
+    descriptionLanguage?: string;
     onMouseEnter?: React.MouseEventHandler<HTMLDivElement>;
     onMouseLeave?: React.MouseEventHandler<HTMLDivElement>;
 }
 
-export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, onMouseLeave, isNew }: PluginCardProps) {
+export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, onMouseLeave, isNew, descriptionLanguage }: PluginCardProps) {
     const settings = Settings.plugins[plugin.name];
     const pluginMeta = PluginMeta[plugin.name];
     const isEquicordPlugin = pluginMeta.folderName.startsWith("src/equicordplugins/") ?? false;
     const isVencordPlugin = pluginMeta.folderName.startsWith("src/plugins/") ?? false;
     const isUserPlugin = pluginMeta?.userPlugin ?? false;
     const isModifiedPlugin = plugin.isModified ?? false;
+    const [translatedDescription, setTranslatedDescription] = React.useState(plugin.description);
 
     const isEnabled = () => isPluginEnabled(plugin.name);
+
+    React.useEffect(() => {
+        if (!descriptionLanguage) {
+            setTranslatedDescription(plugin.description);
+            return;
+        }
+
+        const cachedTranslation = translatedDescriptionCache.get(
+            getDescriptionTranslationCacheKey(plugin.description, descriptionLanguage)
+        );
+
+        if (cachedTranslation) {
+            setTranslatedDescription(cachedTranslation);
+            return;
+        }
+
+        let isMounted = true;
+        setTranslatedDescription(plugin.description);
+        void translateDescription(plugin.description, descriptionLanguage)
+            .then(translated => {
+                if (!isMounted) return;
+                setTranslatedDescription(translated);
+            })
+            .catch(error => {
+                logger.error(`Error while translating plugin description for ${plugin.name}:`, error);
+                showTranslateErrorToast();
+                if (isMounted) setTranslatedDescription(plugin.description);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [descriptionLanguage, plugin.description, plugin.name]);
 
     function toggleEnabled() {
         const wasEnabled = isEnabled();
@@ -99,8 +189,8 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
         {
             condition: isEquicordPlugin,
             src: "https://equicord.org/assets/favicon.png",
-            alt: "Equicord",
-            title: "Equicord Plugin"
+            alt: "Chocord",
+            title: "Chocord Plugin"
         },
         {
             condition: isVencordPlugin,
@@ -133,7 +223,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             name={plugin.name}
             sourceBadge={sourceBadge}
             tooltip={tooltip}
-            description={plugin.description}
+            description={translatedDescription}
             isNew={isNew}
             enabled={isEnabled()}
             setEnabled={toggleEnabled}
@@ -143,7 +233,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             infoButton={
                 <button
                     role="switch"
-                    onClick={() => openPluginModal(plugin, onRestartNeeded)}
+                    onClick={() => openPluginModal(plugin, onRestartNeeded, translatedDescription)}
                     className={cl("info-button")}
                 >
                     {plugin.settings?.def && Object.values(plugin.settings.def).some(s => s.type !== OptionType.CUSTOM && !s.hidden)

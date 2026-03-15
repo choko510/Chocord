@@ -1202,12 +1202,12 @@ const BUILT_IN_CATEGORIES: CommandCategory[] = [
     {
         id: DEFAULT_CATEGORY_ID,
         label: "Quick Actions",
-        description: "Common Equicord shortcuts"
+        description: "Common Chocord shortcuts"
     },
     {
         id: "plugins",
         label: "Plugins",
-        description: "Manage Equicord and Vencord plugins"
+        description: "Manage Chocord and Vencord plugins"
     },
     {
         id: CONTEXT_PROVIDER_ID,
@@ -1247,7 +1247,7 @@ const BUILT_IN_CATEGORIES: CommandCategory[] = [
     {
         id: "updates",
         label: "Updates",
-        description: "Stay up to date with Equicord"
+        description: "Stay up to date with Chocord"
     },
     {
         id: "discord-settings",
@@ -1279,7 +1279,7 @@ const BUILT_IN_CATEGORIES: CommandCategory[] = [
 const BUILT_IN_COMMANDS: CommandEntry[] = [
     {
         id: "open-equicord-settings",
-        label: "Open Equicord Settings",
+        label: "Open Chocord Settings",
         keywords: ["settings", "equicord"],
         categoryId: DEFAULT_CATEGORY_ID,
         tags: [TAG_NAVIGATION, TAG_CORE],
@@ -1665,7 +1665,7 @@ function registerUpdateCommands() {
     registerCommand({
         id: "check-for-updates",
         label: "Check for Updates",
-        description: "Checks for Equicord updates",
+        description: "Checks for Chocord updates",
         keywords: ["updates", "check", "updater"],
         categoryId: "updates",
         tags: [TAG_DEVELOPER, TAG_UTILITY],
@@ -1688,7 +1688,7 @@ function registerUpdateCommands() {
     registerCommand({
         id: "open-changelog",
         label: "View Changelog",
-        description: "Opens the Equicord changelog",
+        description: "Opens the Chocord changelog",
         keywords: ["updates", "changelog"],
         categoryId: "updates",
         tags: [TAG_DEVELOPER, TAG_NAVIGATION],
@@ -2589,7 +2589,7 @@ function registerPluginChangeCommands() {
 
     registerCommand({
         id: "restart-equicord",
-        label: "Restart Equicord",
+        label: "Restart Chocord",
         description: "Reloads the Discord client window",
         keywords: ["restart", "reload"],
         categoryId: "plugins-changes",
