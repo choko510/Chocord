@@ -7,19 +7,22 @@
 import "./styles.css";
 
 import { BaseText } from "@components/BaseText";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { Tooltip } from "@webpack/common";
 
 export function StockPluginsCard({ totalStockPlugins, enabledStockPlugins }) {
+    const t = useSettingsI18n();
+
     return (
         <div className="vc-plugin-stats vc-stockplugins-stats-card">
             <div className="vc-plugin-stats-card-container">
                 <div className="vc-plugin-stats-card-section">
-                    <BaseText size="md" weight="semibold">Enabled Plugins</BaseText>
+                    <BaseText size="md" weight="semibold">{t("Enabled Plugins")}</BaseText>
                     <BaseText size="xl" weight="bold">{enabledStockPlugins}</BaseText>
                 </div>
                 <div className="vc-plugin-stats-card-divider"></div>
                 <div className="vc-plugin-stats-card-section">
-                    <BaseText size="md" weight="semibold">Total Plugins</BaseText>
+                    <BaseText size="md" weight="semibold">{t("Total Plugins")}</BaseText>
                     <BaseText size="xl" weight="bold">{totalStockPlugins}</BaseText>
                 </div>
             </div>
@@ -28,12 +31,14 @@ export function StockPluginsCard({ totalStockPlugins, enabledStockPlugins }) {
 }
 
 export function UserPluginsCard({ totalUserPlugins, enabledUserPlugins }) {
+    const t = useSettingsI18n();
+
     if (totalUserPlugins === 0)
         return (
             <div className="vc-plugin-stats vc-stockplugins-stats-card">
                 <div className="vc-plugin-stats-card-container ">
                     <div className="vc-plugin-stats-card-section">
-                        <BaseText size="md" weight="semibold">Total Userplugins</BaseText>
+                        <BaseText size="md" weight="semibold">{t("Total Userplugins")}</BaseText>
                         <Tooltip
                             text={
                                 <img
@@ -57,17 +62,17 @@ export function UserPluginsCard({ totalUserPlugins, enabledUserPlugins }) {
     else
         return (
             <div className="vc-plugin-stats vc-stockplugins-stats-card">
-                <div className="vc-plugin-stats-card-container">
-                    <div className="vc-plugin-stats-card-section">
-                        <BaseText size="md" weight="semibold">Enabled Userplugins</BaseText>
-                        <BaseText size="xl" weight="bold">{enabledUserPlugins}</BaseText>
+                    <div className="vc-plugin-stats-card-container">
+                        <div className="vc-plugin-stats-card-section">
+                            <BaseText size="md" weight="semibold">{t("Enabled Userplugins")}</BaseText>
+                            <BaseText size="xl" weight="bold">{enabledUserPlugins}</BaseText>
+                        </div>
+                        <div className="vc-plugin-stats-card-divider"></div>
+                        <div className="vc-plugin-stats-card-section">
+                            <BaseText size="md" weight="semibold">{t("Total Userplugins")}</BaseText>
+                            <BaseText size="xl" weight="bold">{totalUserPlugins}</BaseText>
+                        </div>
                     </div>
-                    <div className="vc-plugin-stats-card-divider"></div>
-                    <div className="vc-plugin-stats-card-section">
-                        <BaseText size="md" weight="semibold">Total Userplugins</BaseText>
-                        <BaseText size="xl" weight="bold">{totalUserPlugins}</BaseText>
-                    </div>
-                </div>
             </div>
         );
 }

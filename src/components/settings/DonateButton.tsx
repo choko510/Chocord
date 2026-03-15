@@ -20,6 +20,7 @@ import { Button } from "@components/Button";
 import { Heart } from "@components/Heart";
 import { OpenExternalIcon } from "@components/Icons";
 import { openInviteModal } from "@utils/discord";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { ButtonProps } from "@vencord/discord-types";
 import { showToast } from "@webpack/common";
 
@@ -28,6 +29,7 @@ export function DonateButton({
     className,
     ...props
 }: Partial<ButtonProps> & { equicord?: boolean; }) {
+    const t = useSettingsI18n();
     const link = equicord ? "https://github.com/sponsors/thororen1234" : "https://github.com/sponsors/Vendicated";
     return (
         <Button
@@ -39,7 +41,7 @@ export function DonateButton({
             className={className || "vc-donate-button"}
         >
             <Heart />
-            Donate
+            {t("Donate")}
         </Button>
     );
 }
@@ -48,6 +50,7 @@ export function InviteButton({
     className,
     ...props
 }: Partial<ButtonProps>) {
+    const t = useSettingsI18n();
     return (
         <Button
             {...props}
@@ -57,12 +60,12 @@ export function InviteButton({
             onClick={async e => {
                 e.preventDefault();
                 openInviteModal("wKgT9j2xfN").catch(() =>
-                    showToast("Invalid or expired invite"),
+                    showToast(t("Invalid or expired invite")),
                 );
             }}
             className={className || "vc-donate-button"}
         >
-            Invite
+            {t("Invite")}
             <OpenExternalIcon className="vc-invite-link" />
         </Button>
     );
@@ -72,6 +75,7 @@ export function TranslateButton({
     className,
     ...props
 }: Partial<ButtonProps>) {
+    const t = useSettingsI18n();
     const link = "https://weblate.equicord.org/projects/equicord/";
     return (
         <Button
@@ -82,7 +86,7 @@ export function TranslateButton({
             onClick={() => VencordNative.native.openExternal(link)}
             className={className || "vc-translate-button"}
         >
-            Translate Here
+            {t("Translate Here")}
         </Button>
     );
 }

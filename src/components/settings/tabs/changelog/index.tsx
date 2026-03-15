@@ -18,6 +18,7 @@ import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { HashLink } from "@components/settings/tabs/updater/Components";
 import { Margins } from "@utils/margins";
 import { useAwaiter } from "@utils/react";
+import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
 import { getRepo, UpdateLogger } from "@utils/updater";
 import { Alerts, React, Toasts } from "@webpack/common";
 
@@ -52,6 +53,8 @@ function ChangelogCard({
     repo: string;
     repoPending: boolean;
 }) {
+    const t = useSettingsI18n();
+
     return (
         <Card className="vc-changelog-entry">
             <div
@@ -70,7 +73,7 @@ function ChangelogCard({
                         />
                     </code>
                     <span className="vc-changelog-entry-author">
-                        by {entry.author}
+                        {t("by")} {entry.author}
                     </span>
                 </div>
                 <div className="vc-changelog-entry-message">
@@ -96,6 +99,7 @@ function UpdateLogCard({
     onToggleExpand: () => void;
     onClearLog: (logId: string) => void;
 }) {
+    const t = useSettingsI18n();
     const isRepositoryFetch =
         log.type === "repository_fetch" ||
         (log.type === undefined &&
@@ -111,9 +115,9 @@ function UpdateLogCard({
                         <span>
                             {isRepositoryFetch
                                 ? isUpToDate
-                                    ? `Repository check: ${log.fromHash.slice(0, 7)} (up to date)`
-                                    : `Repository check: ${log.fromHash.slice(0, 7)} → ${log.toHash.slice(0, 7)}`
-                                : `Update: ${log.fromHash.slice(0, 7)} → ${log.toHash.slice(0, 7)}`}
+                                    ? t("Repository check: {from} (up to date)", { from: log.fromHash.slice(0, 7) })
+                                    : t("Repository check: {from} -> {to}", { from: log.fromHash.slice(0, 7), to: log.toHash.slice(0, 7) })
+                                : t("Update: {from} -> {to}", { from: log.fromHash.slice(0, 7), to: log.toHash.slice(0, 7) })}
                         </span>
                         <Button
                             size="min"
@@ -139,15 +143,15 @@ function UpdateLogCard({
                     <div className="vc-changelog-log-meta">
                         {formatTimestamp(log.timestamp)}
                         {log.commits.length > 0 &&
-                            ` • ${log.commits.length} commits available`}
-                        {log.commits.length === 0 && " • No new commits"}
+                            ` • ${t("{count} commits available", { count: log.commits.length })}`}
+                        {log.commits.length === 0 && ` • ${t("No new commits")}`}
                         {log.newPlugins.length > 0 &&
-                            ` • ${log.newPlugins.length} new plugins`}
+                            ` • ${t("{count} new plugins", { count: log.newPlugins.length })}`}
                         {log.updatedPlugins.length > 0 &&
-                            ` • ${log.updatedPlugins.length} updated plugins`}
+                            ` • ${t("{count} updated plugins", { count: log.updatedPlugins.length })}`}
                         {log.newSettings &&
                             getNewSettingsSize(log.newSettings) > 0 &&
-                            ` • ${getNewSettingsEntries(log.newSettings).reduce((sum, [, arr]) => sum + arr.length, 0)} new settings`}
+                            ` • ${t("{count} new settings", { count: getNewSettingsEntries(log.newSettings).reduce((sum, [, arr]) => sum + arr.length, 0) })}`}
                     </div>
                 </div>
                 <div
@@ -171,7 +175,7 @@ function UpdateLogCard({
                     {log.updatedPlugins.length > 0 && (
                         <div className="vc-changelog-log-plugins">
                             <Heading className={Margins.bottom8}>
-                                Updated Plugins
+                                {t("Updated Plugins")}
                             </Heading>
                             <NewPluginsCompact
                                 newPlugins={log.updatedPlugins}
@@ -184,7 +188,7 @@ function UpdateLogCard({
                         getNewSettingsSize(log.newSettings) > 0 && (
                             <div className="vc-changelog-log-plugins">
                                 <Heading className={Margins.bottom8}>
-                                    New Settings
+                                    {t("New Settings")}
                                 </Heading>
                                 <div className="vc-changelog-new-plugins-list">
                                     {getNewSettingsEntries(log.newSettings).map(
@@ -193,7 +197,7 @@ function UpdateLogCard({
                                                 <span
                                                     key={`${pluginName}-${setting}`}
                                                     className="vc-changelog-new-plugin-tag"
-                                                    title={`New setting in ${pluginName}`}
+                                                    title={t("New setting in {plugin}", { plugin: pluginName })}
                                                 >
                                                     {pluginName}.{setting}
                                                 </span>
@@ -224,8 +228,9 @@ function UpdateLogCard({
 }
 
 function ChangelogContent() {
+    const t = useSettingsI18n();
     const [repo, repoErr, repoPending] = useAwaiter(getRepo, {
-        fallbackValue: "Loading...",
+        fallbackValue: t("Loading..."),
     });
     const [changelog, setChangelog] = React.useState<ChangelogEntry[]>([]);
     const [changelogHistory, setChangelogHistory] =
@@ -255,9 +260,9 @@ function ChangelogContent() {
     React.useEffect(() => {
         if (repoErr) {
             UpdateLogger.error("Failed to retrieve repo", repoErr);
-            setError("Failed to retrieve repository information");
+            setError(t("Failed to retrieve repository information"));
         }
-    }, [repoErr]);
+    }, [repoErr, t]);
 
     const loadChangelogHistory = React.useCallback(async () => {
         try {
@@ -353,7 +358,7 @@ function ChangelogContent() {
                 if (!logged) {
                     setChangelog([]);
                     Toasts.show({
-                        message: "Already up to date with repository",
+                        message: t("Already up to date with repository"),
                         id: Toasts.genId(),
                         type: Toasts.Type.MESSAGE,
                         options: {
@@ -385,7 +390,10 @@ function ChangelogContent() {
                     setRecentlyChecked(true);
 
                     Toasts.show({
-                        message: `Found ${updates.value.length} commit${updates.value.length === 1 ? "" : "s"} from repository`,
+                        message: t("Found {count} commit{s} from repository", {
+                            count: updates.value.length,
+                            s: updates.value.length === 1 ? "" : "s",
+                        }),
                         id: Toasts.genId(),
                         type: Toasts.Type.SUCCESS,
                         options: {
@@ -397,8 +405,8 @@ function ChangelogContent() {
                     setRecentlyChecked(true);
                     Toasts.show({
                         message: logged
-                            ? "Logged commits from your latest update"
-                            : "Repository is up to date with your local copy",
+                            ? t("Logged commits from your latest update")
+                            : t("Repository is up to date with your local copy"),
                         id: Toasts.genId(),
                         type: logged ? Toasts.Type.SUCCESS : Toasts.Type.MESSAGE,
                         options: {
@@ -418,12 +426,12 @@ function ChangelogContent() {
             UpdateLogger.error("Failed to fetch commits from repository", err);
             const errorMessage =
                 err?.message ||
-                "Failed to connect to repository. Check your internet connection.";
+                t("Failed to connect to repository. Check your internet connection.");
             setError(errorMessage);
 
             // funny little error toast hopefully doesn't happen!
             Toasts.show({
-                message: "Could not fetch commits from repository",
+                message: t("Could not fetch commits from repository"),
                 id: Toasts.genId(),
                 type: Toasts.Type.FAILURE,
                 options: {
@@ -433,7 +441,7 @@ function ChangelogContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [repoPending, repoErr, loadNewPlugins, loadChangelogHistory]);
+    }, [repoPending, repoErr, loadNewPlugins, loadChangelogHistory, t]);
 
     React.useEffect(() => {
         const loadInitialData = async () => {
@@ -477,9 +485,9 @@ function ChangelogContent() {
 
     return (
         <>
-            <Heading className={Margins.top16}>Fetch Changes</Heading>
+            <Heading className={Margins.top16}>{t("Fetch Changes")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Check the repository for new commits, plugin updates, and code changes. This will compare your current version with the latest available and show you what's new.
+                {t("Check the repository for new commits, plugin updates, and code changes. This will compare your current version with the latest available and show you what's new.")}
             </Paragraph>
 
             <div className="vc-changelog-controls">
@@ -490,10 +498,10 @@ function ChangelogContent() {
                     variant={recentlyChecked ? "positive" : "primary"}
                 >
                     {isLoading
-                        ? "Loading..."
+                        ? t("Loading...")
                         : recentlyChecked
-                            ? "Repository Up to Date"
-                            : "Fetch from Repository"}
+                            ? t("Repository Up to Date")
+                            : t("Fetch from Repository")}
                 </Button>
 
                 {changelogHistory.length > 0 && (
@@ -504,24 +512,24 @@ function ChangelogContent() {
                             onClick={() => setShowHistory(!showHistory)}
                             style={{ marginLeft: "8px" }}
                         >
-                            {showHistory ? "Hide Logs" : "Show Logs"}
+                            {showHistory ? t("Hide Logs") : t("Show Logs")}
                         </Button>
                         <Button
                             size="small"
                             variant="dangerPrimary"
                             onClick={() => {
                                 Alerts.show({
-                                    title: "Clear All Logs",
-                                    body: "Are you sure you would like to clear all logs? This can't be undone.",
-                                    confirmText: "Clear All",
+                                    title: t("Clear All Logs"),
+                                    body: t("Are you sure you would like to clear all logs? This can't be undone."),
+                                    confirmText: t("Clear All"),
                                     confirmColor: "danger",
-                                    cancelText: "Cancel",
+                                    cancelText: t("Cancel"),
                                     onConfirm: async () => {
                                         await clearChangelogHistory();
                                         await loadChangelogHistory();
                                         setShowHistory(false);
                                         Toasts.show({
-                                            message: "All logs have been cleared",
+                                            message: t("All logs have been cleared"),
                                             id: Toasts.genId(),
                                             type: Toasts.Type.SUCCESS,
                                             options: {
@@ -533,7 +541,7 @@ function ChangelogContent() {
                             }}
                             style={{ marginLeft: "8px" }}
                         >
-                            Clear All Logs
+                            {t("Clear All Logs")}
                         </Button>
                     </>
                 )}
@@ -543,22 +551,22 @@ function ChangelogContent() {
                 <ErrorCard style={{ padding: "1em", marginTop: "1em" }}>
                     <Paragraph>{error}</Paragraph>
                     <Paragraph color="text-subtle" style={{ marginTop: "0.5em" }}>
-                        Make sure you have an internet connection and try again.
+                        {t("Make sure you have an internet connection and try again.")}
                     </Paragraph>
                 </ErrorCard>
             )}
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Repository</Heading>
+            <Heading className={Margins.top20}>{t("Repository")}</Heading>
             <Paragraph className={Margins.bottom8}>
-                This is the GitHub repository where Chocord fetches updates from.
+                {t("This is the GitHub repository where Chocord fetches updates from.")}
             </Paragraph>
             <Paragraph color="text-subtle">
                 {repoPending ? (
                     repo
                 ) : repoErr ? (
-                    "Failed to retrieve - check console"
+                    t("Failed to retrieve - check console")
                 ) : (
                     <Link href={repo}>
                         {repo.split("/").slice(-2).join("/")}
@@ -571,9 +579,9 @@ function ChangelogContent() {
                 <>
                     <Divider className={Margins.top20} />
 
-                    <Heading className={Margins.top20}>Recent Changes</Heading>
+                    <Heading className={Margins.top20}>{t("Recent Changes")}</Heading>
                     <Paragraph className={Margins.bottom16}>
-                        These are the new commits and plugin updates since your last version. You can see what features were added, bugs were fixed, and which plugins received updates.
+                        {t("These are the new commits and plugin updates since your last version. You can see what features were added, bugs were fixed, and which plugins received updates.")}
                     </Paragraph>
 
                     {newPlugins.length > 0 && (
@@ -588,7 +596,7 @@ function ChangelogContent() {
                     {updatedPlugins.length > 0 && (
                         <div className={Margins.bottom16}>
                             <Heading className={Margins.bottom8}>
-                                Updated Plugins ({updatedPlugins.length})
+                                {t("Updated Plugins")} ({updatedPlugins.length})
                             </Heading>
                             <NewPluginsCompact newPlugins={updatedPlugins} />
                         </div>
@@ -597,7 +605,7 @@ function ChangelogContent() {
                     {changelog.length > 0 && (
                         <div>
                             <Heading className={Margins.bottom8}>
-                                Code Changes ({changelog.length} {changelog.length === 1 ? "commit" : "commits"})
+                                {t("Code Changes ({count} {unit})", { count: changelog.length, unit: changelog.length === 1 ? t("commit") : t("commits") })}
                             </Heading>
                             <div className="vc-changelog-commits-list">
                                 {changelog.map(entry => (
@@ -617,9 +625,9 @@ function ChangelogContent() {
             {!hasCurrentChanges && !isLoading && !error && (
                 <>
                     <Divider className={Margins.top20} />
-                    <Heading className={Margins.top20}>Recent Changes</Heading>
+                    <Heading className={Margins.top20}>{t("Recent Changes")}</Heading>
                     <Paragraph color="text-subtle">
-                        No commits available ahead of your current version. Click "Fetch from Repository" to check for new changes.
+                        {t("No commits available ahead of your current version. Click \"Fetch from Repository\" to check for new changes.")}
                     </Paragraph>
                 </>
             )}
@@ -629,10 +637,13 @@ function ChangelogContent() {
                     <Divider className={Margins.top20} />
 
                     <Heading className={Margins.top20}>
-                        Update Logs ({changelogHistory.length} {changelogHistory.length === 1 ? "log" : "logs"})
+                        {t("Update Logs ({count} {unit})", {
+                            count: changelogHistory.length,
+                            unit: changelogHistory.length === 1 ? t("log") : t("logs"),
+                        })}
                     </Heading>
                     <Paragraph className={Margins.bottom16}>
-                        A history of your previous update sessions with their commit history and plugin changes. Click on a log to expand it and see the details.
+                        {t("A history of your previous update sessions with their commit history and plugin changes. Click on a log to expand it and see the details.")}
                     </Paragraph>
 
                     <div className="vc-changelog-history-list">
@@ -646,11 +657,11 @@ function ChangelogContent() {
                                 onToggleExpand={() => toggleLogExpanded(log.id)}
                                 onClearLog={logId => {
                                     Alerts.show({
-                                        title: "Clear Log",
-                                        body: "Are you sure you would like to clear this log? This can't be undone.",
-                                        confirmText: "Clear Log",
+                                        title: t("Clear Log"),
+                                        body: t("Are you sure you would like to clear this log? This can't be undone."),
+                                        confirmText: t("Clear Log"),
                                         confirmColor: "danger",
-                                        cancelText: "Cancel",
+                                        cancelText: t("Cancel"),
                                         onConfirm: async () => {
                                             await clearIndividualLog(logId);
                                             await loadChangelogHistory();
@@ -660,7 +671,7 @@ function ChangelogContent() {
                                                 ),
                                             );
                                             Toasts.show({
-                                                message: "Log has been cleared",
+                                                message: t("Log has been cleared"),
                                                 id: Toasts.genId(),
                                                 type: Toasts.Type.SUCCESS,
                                                 options: {
@@ -687,4 +698,4 @@ function ChangelogTab() {
     );
 }
 
-export default wrapTab(ChangelogTab, "Changelog");
+export default wrapTab(ChangelogTab, translateSettingsText("Changelog"));

@@ -40,6 +40,7 @@ import { classes } from "@utils/misc";
 import { openModal } from "@utils/modal";
 import { relaunch, showItemInFolder } from "@utils/native";
 import { useAwaiter, useForceUpdater } from "@utils/react";
+import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
 import type { ThemeHeader } from "@utils/themes";
 import { getThemeInfo, stripBOM, type UserThemeHeader } from "@utils/themes/bd";
 import { usercssParse } from "@utils/themes/usercss";
@@ -97,32 +98,33 @@ enum ThemeFilter {
     Disabled = "disabled"
 }
 
-const filterOptions = [
-    { label: "Show All", value: ThemeFilter.All },
-    { label: "Online Themes", value: ThemeFilter.Online },
-    { label: "Local Themes", value: ThemeFilter.Local },
-    { label: "Enabled", value: ThemeFilter.Enabled },
-    { label: "Disabled", value: ThemeFilter.Disabled }
-];
+const filterOptionLabels: Record<ThemeFilter, string> = {
+    [ThemeFilter.All]: "Show All",
+    [ThemeFilter.Online]: "Online Themes",
+    [ThemeFilter.Local]: "Local Themes",
+    [ThemeFilter.Enabled]: "Enabled",
+    [ThemeFilter.Disabled]: "Disabled",
+};
 
 function Validator({ link, onValidate }: { link: string; onValidate: (valid: boolean) => void; }) {
+    const t = useSettingsI18n();
     const [res, err, pending] = useAwaiter(() => fetch(link).then(res => {
         if (res.status > 300) throw `${res.status} ${res.statusText}`;
         const contentType = res.headers.get("Content-Type");
         if (!contentType?.startsWith("text/css") && !contentType?.startsWith("text/plain")) {
             onValidate(false);
-            throw "Not a CSS file. Remember to use the raw link!";
+            throw t("Not a CSS file. Remember to use the raw link!");
         }
 
         onValidate(true);
-        return "Okay!";
+        return t("Okay!");
     }));
 
     const text = pending
-        ? "Checking..."
+        ? t("Checking...")
         : err
-            ? `Error: ${err instanceof Error ? err.message : String(err)}`
-            : "Valid!";
+            ? t("Error: {error}", { error: err instanceof Error ? err.message : String(err) })
+            : t("Valid!");
 
     return <Paragraph style={{
         color: pending ? "var(--text-muted)" : err ? "var(--text-feedback-critical)" : "var(--status-positive)"
@@ -156,21 +158,22 @@ interface UserCSSCardProps {
 }
 
 function UserCSSThemeCard({ theme, enabled, onChange, onDelete, onSettingsReset }: UserCSSCardProps) {
+    const t = useSettingsI18n();
     const missingPlugins = useMemo(() =>
         theme.requiredPlugins?.filter(p => !isPluginEnabled(p)), [theme]);
 
     return (
         <AddonCard
-            name={theme.name ?? "Unknown"}
+            name={theme.name ?? t("Unknown")}
             description={theme.description}
-            author={theme.author ?? "Unknown"}
+            author={theme.author ?? t("Unknown")}
             enabled={enabled}
             setEnabled={onChange}
             disabled={missingPlugins && missingPlugins.length > 0}
             infoButton={
                 <>
                     {missingPlugins && missingPlugins.length > 0 && (
-                        <Tooltip text={"The following plugins are required, but aren't enabled: " + missingPlugins.join(", ")}>
+                        <Tooltip text={t("The following plugins are required, but aren't enabled: {plugins}", { plugins: missingPlugins.join(", ") })}>
                             {({ onMouseLeave, onMouseEnter }) => (
                                 <div
                                     style={{ color: "var(--status-danger" }}
@@ -199,11 +202,11 @@ function UserCSSThemeCard({ theme, enabled, onChange, onDelete, onSettingsReset 
             }
             footer={
                 <Flex flexDirection="row" gap="0.4em" style={{ alignItems: "center" }}>
-                    {!!theme.homepageURL && <Link href={theme.homepageURL}>Homepage</Link>}
+                    {!!theme.homepageURL && <Link href={theme.homepageURL}>{t("Homepage")}</Link>}
                     {!!(theme.homepageURL && theme.supportURL) && (
                         <span style={{ color: "var(--text-muted)" }}>•</span>
                     )}
-                    {!!theme.supportURL && <Link href={theme.supportURL}>Support</Link>}
+                    {!!theme.supportURL && <Link href={theme.supportURL}>{t("Support")}</Link>}
                 </Flex>
             }
         />
@@ -211,13 +214,14 @@ function UserCSSThemeCard({ theme, enabled, onChange, onDelete, onSettingsReset 
 }
 
 function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, onEditName, disabled, onPin, isPinned, onRefresh, onOpenFolder, onCopyUrl, onDownload, themeLink, isLocal }: OtherThemeCardProps) {
+    const t = useSettingsI18n();
     const openThemeMenu = (e: React.MouseEvent) => {
         ContextMenuApi.openContextMenu(e, () => (
             <Menu.Menu navId="theme-card-menu" onClose={ContextMenuApi.closeContextMenu}>
                 {onPin && (
                     <Menu.MenuItem
                         id="pin-theme"
-                        label={isPinned ? "Unpin" : "Pin"}
+                        label={isPinned ? t("Unpin") : t("Pin")}
                         icon={PinIcon}
                         action={onPin}
                     />
@@ -225,7 +229,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {theme.website && (
                     <Menu.MenuItem
                         id="open-website"
-                        label="Open Website"
+                        label={t("Open Website")}
                         icon={HomeIcon}
                         action={() => window.open(theme.website, "_blank")}
                     />
@@ -233,11 +237,11 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {theme.invite && (
                     <Menu.MenuItem
                         id="join-discord"
-                        label="Join Discord"
+                        label={t("Join Discord")}
                         icon={DiscordIcon}
                         action={() => {
                             openInviteModal(theme.invite!).catch(() =>
-                                showToast("Invalid or expired invite")
+                                showToast(t("Invalid or expired invite"))
                             );
                         }}
                     />
@@ -245,7 +249,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {onCopyUrl && themeLink && (
                     <Menu.MenuItem
                         id="copy-url"
-                        label="Copy URL"
+                        label={t("Copy URL")}
                         icon={LinkIcon}
                         action={onCopyUrl}
                     />
@@ -253,7 +257,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {onDownload && (
                     <Menu.MenuItem
                         id="download-theme"
-                        label="Download"
+                        label={t("Download")}
                         icon={DownloadIcon}
                         action={onDownload}
                     />
@@ -261,7 +265,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {onOpenFolder && (
                     <Menu.MenuItem
                         id="open-folder"
-                        label="Open in Folder"
+                        label={t("Open in Folder")}
                         icon={FolderIcon}
                         action={onOpenFolder}
                     />
@@ -269,7 +273,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                 {onRefresh && (
                     <Menu.MenuItem
                         id="refresh-theme"
-                        label="Refresh"
+                        label={t("Refresh")}
                         icon={RefreshIcon}
                         action={onRefresh}
                     />
@@ -279,7 +283,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                         <Menu.MenuSeparator />
                         <Menu.MenuItem
                             id="delete-theme"
-                            label="Delete"
+                            label={t("Delete")}
                             color="danger"
                             icon={DeleteIcon}
                             action={() => onDelete()}
@@ -311,7 +315,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
             }
             footer={
                 <Flex flexDirection="row" gap="0.4em" alignItems="center">
-                    <Tooltip text={isLocal ? "Local Theme" : "Online Theme"}>
+                    <Tooltip text={isLocal ? t("Local Theme") : t("Online Theme")}>
                         {({ onMouseLeave, onMouseEnter }) => (
                             <div
                                 onMouseEnter={onMouseEnter}
@@ -323,7 +327,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                         )}
                     </Tooltip>
                     {isPinned && (
-                        <Tooltip text="Pinned">
+                        <Tooltip text={t("Pinned")}>
                             {({ onMouseLeave, onMouseEnter }) => (
                                 <div
                                     onMouseEnter={onMouseEnter}
@@ -335,7 +339,7 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                             )}
                         </Tooltip>
                     )}
-                    {!!theme.website && <Link href={theme.website}>Website</Link>}
+                    {!!theme.website && <Link href={theme.website}>{t("Website")}</Link>}
                     {!!(theme.website && theme.invite) && (
                         <span style={{ color: "var(--text-muted)" }}>•</span>
                     )}
@@ -346,11 +350,11 @@ function OtherThemeCard({ theme, enabled, onChange, onDelete, showDeleteButton, 
                                 e.preventDefault();
                                 theme.invite != null &&
                                     openInviteModal(theme.invite).catch(() =>
-                                        showToast("Invalid or expired invite")
+                                        showToast(t("Invalid or expired invite"))
                                     );
                             }}
                         >
-                            Discord Server
+                            {t("Discord Server")}
                         </Link>
                     )}
                 </Flex>
@@ -371,6 +375,7 @@ interface UnifiedTheme {
 }
 
 function ThemesTab() {
+    const t = useSettingsI18n();
     const settings = useSettings(["themeLinks", "enabledThemeLinks", "enabledThemes", "enableOnlineThemes", "pinnedThemes"]);
 
     const fileInputRef = useState<HTMLInputElement | null>(null)[1];
@@ -384,6 +389,11 @@ function ThemesTab() {
     const [themeDir] = useAwaiter(VencordNative.themes.getThemesDir);
     const [searchQuery, setSearchQuery] = useState("");
     const [filter, setFilter] = useState(ThemeFilter.All);
+    const filterOptions = useMemo(
+        () => (Object.entries(filterOptionLabels) as [ThemeFilter, string][])
+            .map(([value, label]) => ({ value, label: t(label) })),
+        [t]
+    );
 
     useEffect(() => {
         updateThemes();
@@ -547,9 +557,9 @@ function ThemesTab() {
             setOnlineThemes(prev =>
                 prev?.map(t => t.link === link ? updatedTheme : t) ?? null
             );
-            showToast("Theme refreshed!", Toasts.Type.SUCCESS);
+            showToast(t("Theme refreshed!"), Toasts.Type.SUCCESS);
         } catch {
-            showToast("Failed to refresh theme", Toasts.Type.FAILURE);
+            showToast(t("Failed to refresh theme"), Toasts.Type.FAILURE);
         }
     }
 
@@ -572,7 +582,7 @@ function ThemesTab() {
                 URL.revokeObjectURL(url);
             }
         } catch {
-            showToast("Failed to download theme", Toasts.Type.FAILURE);
+            showToast(t("Failed to download theme"), Toasts.Type.FAILURE);
         }
     }
 
@@ -593,7 +603,7 @@ function ThemesTab() {
 
         for (const { type, header } of userThemes ?? []) {
             const name = type === "usercss"
-                ? (header as UserstyleHeader).name ?? "Unknown"
+                ? (header as UserstyleHeader).name ?? t("Unknown")
                 : (header as UserThemeHeader).name ?? (header as UserThemeHeader).fileName;
 
             themes.push({
@@ -657,14 +667,14 @@ function ThemesTab() {
         <SettingsTab>
             <CspErrorCard />
 
-            <Heading className={Margins.top16}>Theme Management</Heading>
+            <Heading className={Margins.top16}>{t("Theme Management")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Customize Discord's appearance with themes. Add local .css files or load themes directly from URLs. Themes with a cog wheel icon have customizable settings you can modify.
+                {t("Customize Discord's appearance with themes. Add local .css files or load themes directly from URLs. Themes with a cog wheel icon have customizable settings you can modify.")}
             </Paragraph>
 
-            <Heading>Quick Actions</Heading>
+            <Heading>{t("Quick Actions")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Shortcuts for managing your themes. Open your themes folder to add new themes, use QuickCSS for quick style tweaks, or reload themes after making changes.
+                {t("Shortcuts for managing your themes. Open your themes folder to add new themes, use QuickCSS for quick style tweaks, or reload themes after making changes.")}
             </Paragraph>
 
             <QuickActionCard>
@@ -672,7 +682,7 @@ function ThemesTab() {
                     <QuickAction
                         text={
                             <span style={{ position: "relative" }}>
-                                Upload Theme
+                                {t("Upload Theme")}
                                 <FileInput
                                     ref={fileInputRef}
                                     onChange={onFileUpload}
@@ -685,24 +695,24 @@ function ThemesTab() {
                     />
                 ) : (
                     <QuickAction
-                        text="Open Themes Folder"
+                        text={t("Open Themes Folder")}
                         action={() => VencordNative.themes.openFolder()}
                         Icon={FolderIcon}
                     />
                 )}
                 <QuickAction
-                    text="Load missing Themes"
+                    text={t("Load missing Themes")}
                     action={refreshLocalThemes}
                     Icon={RestartIcon}
                 />
                 <QuickAction
-                    text="Edit QuickCSS"
+                    text={t("Edit QuickCSS")}
                     action={() => VencordNative.quickCss.openEditor()}
                     Icon={PaintbrushIcon}
                 />
                 {Settings.plugins.ClientTheme.enabled && (
                     <QuickAction
-                        text="Edit ClientTheme"
+                        text={t("Edit ClientTheme")}
                         action={() => openPluginModal(Plugins.ClientTheme)}
                         Icon={PencilIcon}
                     />
@@ -711,13 +721,13 @@ function ThemesTab() {
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Online Themes</Heading>
+            <Heading className={Margins.top20}>{t("Online Themes")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Load themes directly from URLs instead of local files. Online themes auto-update when the source changes, so you always have the latest version without manual downloads.
+                {t("Load themes directly from URLs instead of local files. Online themes auto-update when the source changes, so you always have the latest version without manual downloads.")}
             </Paragraph>
             <FormSwitch
-                title="Enable Online Themes"
-                description="Toggle online theme loading. When disabled, all online themes will be turned off and you won't be able to add new ones."
+                title={t("Enable Online Themes")}
+                description={t("Toggle online theme loading. When disabled, all online themes will be turned off and you won't be able to add new ones.")}
                 value={settings.enableOnlineThemes ?? true}
                 onChange={value => {
                     settings.enableOnlineThemes = value;
@@ -728,18 +738,22 @@ function ThemesTab() {
             />
 
             <Notice.Info className={Margins.bottom16} style={{ width: "100%" }}>
-                Looking for themes? Check out <Link href="https://betterdiscord.app/themes">BetterDiscord Themes</Link> or search on <Link href="https://github.com/search?q=discord+theme">GitHub</Link>. When downloading from BetterDiscord, click "Download" and place the .theme.css file into your themes folder.
+                {t("Looking for themes? Check out ")}
+                <Link href="https://betterdiscord.app/themes">{t("BetterDiscord Themes")}</Link>
+                {t(" or search on ")}
+                <Link href="https://github.com/search?q=discord+theme">{t("GitHub")}</Link>
+                {t(". When downloading from BetterDiscord, click \"Download\" and place the .theme.css file into your themes folder.")}
             </Notice.Info>
 
             <div className={cl("link-row")}>
                 <TextInput
-                    placeholder="https://example.com/theme.css"
+                    placeholder={t("https://example.com/theme.css")}
                     value={currentThemeLink}
                     onChange={setCurrentThemeLink}
                     disabled={!(settings.enableOnlineThemes ?? true)}
                 />
                 <Button onClick={() => addThemeLink(currentThemeLink)} disabled={!themeLinkValid || !(settings.enableOnlineThemes ?? true)}>
-                    Add
+                    {t("Add")}
                 </Button>
             </div>
             {currentThemeLink && (
@@ -750,17 +764,23 @@ function ThemesTab() {
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Installed Themes</Heading>
+            <Heading className={Margins.top20}>{t("Installed Themes")}</Heading>
             <Paragraph className={Margins.bottom8}>
-                Manage your themes here. Local themes load from your themes folder, online themes from URLs. Themes with a cog wheel icon have customizable settings.
+                {t("Manage your themes here. Local themes load from your themes folder, online themes from URLs. Themes with a cog wheel icon have customizable settings.")}
             </Paragraph>
             <Paragraph color="text-subtle" className={Margins.bottom16}>
-                {allThemes.length} theme{allThemes.length !== 1 ? "s" : ""} installed ({localCount} local, {onlineCount} online) · {enabledCount} enabled
+                {t("{count} theme{s} installed ({local} local, {online} online) · {enabled} enabled", {
+                    count: allThemes.length,
+                    s: allThemes.length !== 1 ? "s" : "",
+                    local: localCount,
+                    online: onlineCount,
+                    enabled: enabledCount,
+                })}
             </Paragraph>
 
             <div className={cl("filter-row")}>
                 <TextInput
-                    placeholder="Search for a theme..."
+                    placeholder={t("Search for a theme...")}
                     value={searchQuery}
                     onChange={setSearchQuery}
                 />
@@ -775,12 +795,12 @@ function ThemesTab() {
             </div>
 
             {userThemes === null ? (
-                <Paragraph color="text-muted" className={Margins.top16}>Loading themes...</Paragraph>
+                <Paragraph color="text-muted" className={Margins.top16}>{t("Loading themes...")}</Paragraph>
             ) : filteredThemes.length === 0 ? (
                 <Paragraph color="text-muted" className={Margins.top16}>
                     {allThemes.length === 0
-                        ? "No themes installed yet. Add theme files to your themes folder or add an online theme above to get started."
-                        : "No themes match your search or filter criteria."
+                        ? t("No themes installed yet. Add theme files to your themes folder or add an online theme above to get started.")
+                        : t("No themes match your search or filter criteria.")
                     }
                 </Paragraph>
             ) : (
@@ -804,7 +824,7 @@ function ThemesTab() {
                                     onPin={() => togglePinTheme(onlineTheme.link)}
                                     isPinned={settings.pinnedThemes.includes(onlineTheme.link)}
                                     themeLink={onlineTheme.link}
-                                    onCopyUrl={() => copyWithToast(onlineTheme.link, "Theme URL copied!")}
+                                    onCopyUrl={() => copyWithToast(onlineTheme.link, t("Theme URL copied!"))}
                                     onRefresh={() => refreshOnlineTheme(onlineTheme.link)}
                                     onDownload={() => downloadTheme(onlineTheme.link, onlineTheme.name ?? "theme")}
                                     isLocal={false}
@@ -866,6 +886,7 @@ function ThemesTab() {
 }
 
 export function CspErrorCard() {
+    const t = useSettingsI18n();
     if (IS_WEB) return null;
 
     const errors = useCspErrors();
@@ -890,10 +911,10 @@ export function CspErrorCard() {
         forceUpdate();
 
         Alerts.show({
-            title: "Restart Required",
-            body: "A restart is required to apply this change",
-            confirmText: "Restart now",
-            cancelText: "Later!",
+            title: t("Restart Required"),
+            body: t("A restart is required to apply this change"),
+            confirmText: t("Restart now"),
+            cancelText: t("Later!"),
             onConfirm: relaunch
         });
     };
@@ -902,23 +923,23 @@ export function CspErrorCard() {
 
     return (
         <ErrorCard className={classes(cl("error-card"), Margins.top16)}>
-            <Heading className={Margins.bottom8}>Blocked Resources</Heading>
+            <Heading className={Margins.bottom8}>{t("Blocked Resources")}</Heading>
             <Paragraph className={Margins.bottom8}>
-                Some resources were blocked from disallowed domains. Move them to GitHub or Imgur, or allow trusted domains below.
+                {t("Some resources were blocked from disallowed domains. Move them to GitHub or Imgur, or allow trusted domains below.")}
             </Paragraph>
 
             {errors.map(url => (
                 <div key={url} className={cl("csp-row")}>
                     <Link href={url}>{url}</Link>
                     <Button size="small" variant="secondary" onClick={() => allowUrl(url)} disabled={isImgurHtmlDomain(url)}>
-                        Allow
+                        {t("Allow")}
                     </Button>
                 </div>
             ))}
 
             {hasImgurHtmlDomain && (
                 <Paragraph color="text-subtle" className={Margins.top8}>
-                    Imgur links should be direct links like <code>https://i.imgur.com/...</code>
+                    {t("Imgur links should be direct links like https://i.imgur.com/...")}
                 </Paragraph>
             )}
         </ErrorCard>
@@ -926,19 +947,22 @@ export function CspErrorCard() {
 }
 
 function UserscriptThemesTab() {
+    const t = useSettingsI18n();
     return (
         <SettingsTab>
-            <Heading className={Margins.top16}>Themes Not Supported</Heading>
+            <Heading className={Margins.top16}>{t("Themes Not Supported")}</Heading>
             <Paragraph className={Margins.bottom8}>
-                Themes are not available on the Userscript version.
+                {t("Themes are not available on the Userscript version.")}
             </Paragraph>
             <Paragraph color="text-subtle">
-                You can install themes using the <Link href={getStylusWebStoreUrl()}>Stylus extension</Link> instead.
+                {t("You can install themes using the ")}
+                <Link href={getStylusWebStoreUrl()}>{t("Stylus extension")}</Link>
+                {t(" instead.")}
             </Paragraph>
         </SettingsTab>
     );
 }
 
 export default IS_USERSCRIPT
-    ? wrapTab(UserscriptThemesTab, "Themes")
-    : wrapTab(ThemesTab, "Themes");
+    ? wrapTab(UserscriptThemesTab, translateSettingsText("Themes"))
+    : wrapTab(ThemesTab, translateSettingsText("Themes"));

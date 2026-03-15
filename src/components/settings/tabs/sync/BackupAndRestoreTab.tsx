@@ -25,32 +25,35 @@ import { Notice } from "@components/Notice";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { Margins } from "@utils/margins";
+import { useSettingsI18n } from "@utils/settingsI18n";
 
 function BackupAndRestoreTab() {
+    const t = useSettingsI18n();
+
     return (
         <SettingsTab>
-            <Heading className={Margins.top16}>Backup & Restore</Heading>
+            <Heading className={Margins.top16}>{t("Backup & Restore")}</Heading>
             <Paragraph className={Margins.bottom20}>
-                Import and export your Chocord settings as a JSON file. This allows you to easily transfer your settings to another device, or recover them after reinstalling Chocord or Discord.
+                {t("Import and export your Chocord settings as a JSON file. This allows you to easily transfer your settings to another device, or recover them after reinstalling Chocord or Discord.")}
             </Paragraph>
 
             <Notice.Warning className={Margins.bottom20}>
-                Importing a settings file will overwrite your current settings. Make sure to export a backup first if you want to keep your current configuration.
+                {t("Importing a settings file will overwrite your current settings. Make sure to export a backup first if you want to keep your current configuration.")}
             </Notice.Warning>
 
-            <Heading>What's included in a backup</Heading>
+            <Heading>{t("What's included in a backup")}</Heading>
             <Paragraph className={Margins.bottom20}>
-                • Custom QuickCSS<br />
-                • Theme Links<br />
-                • Plugin Settings<br />
-                • DataStore Data
+                • {t("Custom QuickCSS")}<br />
+                • {t("Theme Links")}<br />
+                • {t("Plugin Settings")}<br />
+                • {t("DataStore Data")}
             </Paragraph>
 
             <Divider className={Margins.bottom20} />
 
-            <Heading>Import Settings</Heading>
+            <Heading>{t("Import Settings")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Select a previously exported settings file to restore your configuration. This will replace all your current settings with the ones from the backup.
+                {t("Select a previously exported settings file to restore your configuration. This will replace all your current settings with the ones from the backup.")}
             </Paragraph>
 
             <Flex gap="8px" className={Margins.bottom20} style={{ flexWrap: "wrap" }}>
@@ -59,33 +62,33 @@ function BackupAndRestoreTab() {
                     size="small"
                     variant="secondary"
                 >
-                    Import All Settings
+                    {t("Import All Settings")}
                 </Button>
                 <Button
                     onClick={() => uploadSettingsBackup("plugins")}
                     size="small"
                 >
-                    Import Plugins
+                    {t("Import Plugins")}
                 </Button>
                 <Button
                     onClick={() => uploadSettingsBackup("css")}
                     size="small"
                 >
-                    Import QuickCSS
+                    {t("Import QuickCSS")}
                 </Button>
                 <Button
                     onClick={() => uploadSettingsBackup("datastore")}
                     size="small"
                 >
-                    Import DataStore
+                    {t("Import DataStore")}
                 </Button>
             </Flex>
 
             <Divider className={Margins.bottom20} />
 
-            <Heading>Export Settings</Heading>
+            <Heading>{t("Export Settings")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Download your current settings as a backup file. You can export everything at once, or choose to export only specific parts of your configuration.
+                {t("Download your current settings as a backup file. You can export everything at once, or choose to export only specific parts of your configuration.")}
             </Paragraph>
 
             <Flex gap="8px" style={{ flexWrap: "wrap" }}>
@@ -94,25 +97,25 @@ function BackupAndRestoreTab() {
                     size="small"
                     variant="secondary"
                 >
-                    Export All Settings
+                    {t("Export All Settings")}
                 </Button>
                 <Button
                     onClick={() => downloadSettingsBackup("plugins")}
                     size="small"
                 >
-                    Export Plugins
+                    {t("Export Plugins")}
                 </Button>
                 <Button
                     onClick={() => downloadSettingsBackup("css")}
                     size="small"
                 >
-                    Export QuickCSS
+                    {t("Export QuickCSS")}
                 </Button>
                 <Button
                     onClick={() => downloadSettingsBackup("datastore")}
                     size="small"
                 >
-                    Export DataStore
+                    {t("Export DataStore")}
                 </Button>
             </Flex>
         </SettingsTab>

@@ -12,6 +12,7 @@ import { AddonCard } from "@components/settings/AddonCard";
 import { classNameFactory } from "@utils/css";
 import { Logger } from "@utils/Logger";
 import { onlyOnce } from "@utils/onlyOnce";
+import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
 import { OptionType, Plugin } from "@utils/types";
 import { React, showToast, Toasts } from "@webpack/common";
 
@@ -25,7 +26,7 @@ const DESCRIPTION_TRANSLATE_API_KEY = "AIzaSyDLEeFI5OtFBwYBIoK_jj5m32rZK5CkCXA";
 const translatedDescriptionCache = new Map<string, string>();
 const inflightDescriptionTranslations = new Map<string, Promise<string>>();
 const showTranslateErrorToast = onlyOnce(
-    () => showToast("Failed to translate some plugin descriptions.", Toasts.Type.FAILURE)
+    () => showToast(translateSettingsText("Failed to translate some plugin descriptions."), Toasts.Type.FAILURE)
 );
 
 interface GoogleTranslationData {
@@ -85,6 +86,7 @@ interface PluginCardProps extends React.HTMLProps<HTMLDivElement> {
 }
 
 export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, onMouseLeave, descriptionLanguage }: PluginCardProps) {
+    const t = useSettingsI18n();
     const settingsStore = useSettings([`plugins.${plugin.name}.enabled` as any]);
     const settings = settingsStore.plugins[plugin.name];
     const pluginMeta = PluginMeta[plugin.name];
@@ -139,7 +141,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
 
             if (failures.length) {
                 logger.error(`Failed to start dependencies for ${plugin.name}: ${failures.join(", ")}`);
-                showNotice("Failed to start dependencies: " + failures.join(", "), "Close", () => null);
+                showNotice(t("Failed to start dependencies: {deps}", { deps: failures.join(", ") }), t("Close"), () => null);
                 return;
             }
 
@@ -169,10 +171,12 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
         if (!result) {
             settings.enabled = false;
 
-            const msg = `Error while ${wasEnabled ? "stopping" : "starting"} plugin ${plugin.name}`;
-            showToast(msg, Toasts.Type.FAILURE, {
+            const action = wasEnabled ? t("stopping") : t("starting");
+            const localizedMsg = t("Error while {action} plugin {plugin}", { action, plugin: plugin.name });
+            showToast(localizedMsg, Toasts.Type.FAILURE, {
                 position: Toasts.Position.BOTTOM,
             });
+            logger.error(localizedMsg);
 
             return;
         }
@@ -184,32 +188,32 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
         {
             condition: isModifiedPlugin,
             src: "https://equicord.org/assets/icons/equicord/modified.png",
-            alt: "Modified",
-            title: "Modified Vencord Plugin"
+            alt: t("Modified"),
+            title: t("Modified Vencord Plugin")
         },
         {
             condition: isEquicordPlugin,
             src: "https://equicord.org/assets/favicon.png",
             alt: "EquicordPlugins",
-            title: "EquicordPlugins Plugin"
+            title: t("EquicordPlugins Plugin")
         },
         {
             condition: isChocordPlugin,
             src: "https://equicord.org/assets/favicon.png",
             alt: "ChocordPlugins",
-            title: "Chocord Plugin"
+            title: t("Chocord Plugin")
         },
         {
             condition: isVencordPlugin,
             src: "https://equicord.org/assets/icons/vencord/icon-light.png",
             alt: "Vencord",
-            title: "Vencord Plugin"
+            title: t("Vencord Plugin")
         },
         {
             condition: isUserPlugin,
             src: "https://equicord.org/assets/icons/misc/userplugin.png",
             alt: "User",
-            title: "User Plugin"
+            title: t("User Plugin")
         }
     ];
 
@@ -223,7 +227,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
         />
     ) : null;
 
-    const tooltip = pluginDetails?.title || "Unknown Plugin";
+    const tooltip = pluginDetails?.title || t("Unknown Plugin");
 
     return (
         <AddonCard

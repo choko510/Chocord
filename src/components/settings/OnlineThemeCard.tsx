@@ -18,7 +18,6 @@
 
 import "./AddonCard.css";
 
-import { Badge } from "@components/Badge";
 import { BaseText } from "@components/BaseText";
 import { Switch } from "@components/settings";
 import { classNameFactory } from "@utils/css";

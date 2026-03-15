@@ -14,8 +14,8 @@ import { Paragraph } from "@components/Paragraph";
 import { EquicordDevsById, VencordDevsById } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import { fetchUserProfile } from "@utils/discord";
-import { pluralise } from "@utils/misc";
 import { ModalContent, ModalFooter, ModalRoot, openModal } from "@utils/modal";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { User } from "@vencord/discord-types";
 import { showToast, useEffect, useMemo, UserProfileStore, useStateFromStores } from "@webpack/common";
 
@@ -37,6 +37,7 @@ export function openContributorModal(user: User) {
 }
 
 function ContributorModal({ user }: { user: User; }) {
+    const t = useSettingsI18n();
     useSettings();
 
     const profile = useStateFromStores([UserProfileStore], () => UserProfileStore.getUserProfile(user.id));
@@ -63,8 +64,6 @@ function ContributorModal({ user }: { user: User; }) {
             .sort((a, b) => Number(a.required ?? false) - Number(b.required ?? false));
     }, [user.id, user.username]);
 
-    const ContributedHyperLink = <Link href="https://github.com/Chocord/Chocord">contributed</Link>;
-
     const hasLinks = website || githubName;
 
     return (
@@ -81,13 +80,22 @@ function ContributorModal({ user }: { user: User; }) {
 
                 {plugins.length ? (
                     <Paragraph>
-                        {user.username} has {ContributedHyperLink} to {pluralise(plugins.length, "plugin")}!
+                        {t("{username} has contributed to {count} plugin{s}!", {
+                            username: user.username,
+                            count: plugins.length,
+                            s: plugins.length === 1 ? "" : "s",
+                        })}
                     </Paragraph>
                 ) : (
                     <Paragraph>
-                        {user.username} has not made any plugins. They likely {ContributedHyperLink} in other ways!
+                        {t("{username} has not made any plugins. They likely contributed in other ways!", {
+                            username: user.username
+                        })}
                     </Paragraph>
                 )}
+                <Paragraph>
+                    <Link href="https://github.com/Chocord/Chocord">{t("See what you've contributed to")}</Link>
+                </Paragraph>
 
                 {!!plugins.length && (
                     <div className={cl("plugins")}>
@@ -96,7 +104,7 @@ function ContributorModal({ user }: { user: User; }) {
                                 key={p.name}
                                 plugin={p}
                                 disabled={p.required ?? false}
-                                onRestartNeeded={() => showToast("Restart to apply changes!")}
+                                onRestartNeeded={() => showToast(t("Restart to apply changes!"))}
                             />
                         )}
                     </div>

@@ -33,6 +33,7 @@ import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { localStorage } from "@utils/localStorage";
 import { Margins } from "@utils/margins";
 import { useForceUpdater } from "@utils/react";
+import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
 import { findComponentByCodeLazy } from "@webpack";
 import { Alerts, SearchableSelect, Select, useState } from "@webpack/common";
 
@@ -55,23 +56,12 @@ function validateUrl(url: string) {
         new URL(url);
         return true;
     } catch {
-        return "Invalid URL";
+        return translateSettingsText("Invalid URL");
     }
 }
 
-const cloudBackendOptions = [
-    { label: "Chocord Cloud", value: "https://cloud.equicord.org/" },
-    { label: "Vencord Cloud", value: "https://api.vencord.dev/" }
-];
-
-const syncDirectionOptions = [
-    { label: "Two-way sync (changes go both directions)", value: "both" },
-    { label: "This device is the source (upload only)", value: "push" },
-    { label: "The cloud is the source (download only)", value: "pull" },
-    { label: "Do not sync automatically (manual sync via buttons below only)", value: "manual" }
-];
-
 function CloudTab() {
+    const t = useSettingsI18n();
     const settings = useSettings(["cloud.authenticated", "cloud.url", "cloud.settingsSync"]);
     const [inputKey, setInputKey] = useState(0);
     const forceUpdate = useForceUpdater();
@@ -79,6 +69,17 @@ function CloudTab() {
     const { cloud } = settings;
     const isAuthenticated = cloud.authenticated;
     const syncEnabled = isAuthenticated && cloud.settingsSync;
+    const cloudBackendOptions = [
+        { label: t("Chocord Cloud"), value: "https://cloud.equicord.org/" },
+        { label: t("Vencord Cloud"), value: "https://api.vencord.dev/" }
+    ];
+
+    const syncDirectionOptions = [
+        { label: t("Two-way sync (changes go both directions)"), value: "both" },
+        { label: t("This device is the source (upload only)"), value: "push" },
+        { label: t("The cloud is the source (download only)"), value: "pull" },
+        { label: t("Do not sync automatically (manual sync via buttons below only)"), value: "manual" }
+    ];
 
     async function changeUrl(url: string) {
         cloud.url = url;
@@ -92,20 +93,22 @@ function CloudTab() {
 
     return (
         <SettingsTab>
-            <Heading className={Margins.top16}>Cloud Integration</Heading>
+            <Heading className={Margins.top16}>{t("Cloud Integration")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Chocord's cloud integration allows you to sync your settings across multiple devices and Discord installations. Your data is securely stored and can be easily restored at any time.
+                {t("Chocord's cloud integration allows you to sync your settings across multiple devices and Discord installations. Your data is securely stored and can be easily restored at any time.")}
             </Paragraph>
 
             <Notice.Info className={Margins.bottom16}>
-                We use our own <Link href="https://github.com/Chocord/Equicloud">Equicloud backend</Link> with enhanced features.
-                View our <Link href="https://equicord.org/cloud/policy">privacy policy</Link> to see what we store and how we use your data.
-                Equicloud is BSD 3.0 licensed, so you can self-host if preferred.
+                {t("We use our own ")}
+                <Link href="https://github.com/Chocord/Equicloud">{t("Equicloud backend")}</Link>
+                {t(" with enhanced features. View our ")}
+                <Link href="https://equicord.org/cloud/policy">{t("privacy policy")}</Link>
+                {t(" to see what we store and how we use your data. Equicloud is BSD 3.0 licensed, so you can self-host if preferred.")}
             </Notice.Info>
 
             <FormSwitch
-                title="Enable Cloud Integration"
-                description="Connect to the cloud backend for settings synchronization. This will request authorization if you haven't set up cloud integration yet."
+                title={t("Enable Cloud Integration")}
+                description={t("Connect to the cloud backend for settings synchronization. This will request authorization if you haven't set up cloud integration yet.")}
                 value={isAuthenticated}
                 onChange={v => {
                     if (v)
@@ -118,9 +121,9 @@ function CloudTab() {
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Cloud Backend</Heading>
+            <Heading className={Margins.top20}>{t("Cloud Backend")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Choose which cloud backend to use for storing your settings. You can switch between Chocord's and Vencord's cloud services, or use a self-hosted instance.
+                {t("Choose which cloud backend to use for storing your settings. You can switch between Chocord's and Vencord's cloud services, or use a self-hosted instance.")}
             </Paragraph>
 
             <div className={Margins.bottom8}>
@@ -156,21 +159,21 @@ function CloudTab() {
                 >
                     <Flex gap="8px" alignItems="center">
                         <RefreshIcon color="currentColor" />
-                        Reauthorize
+                        {t("Reauthorize")}
                     </Flex>
                 </Button>
             </Flex>
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Settings Sync</Heading>
+            <Heading className={Margins.top20}>{t("Settings Sync")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Synchronize your Chocord settings to the cloud. This makes it easy to keep your configuration consistent across multiple devices without manual import/export.
+                {t("Synchronize your Chocord settings to the cloud. This makes it easy to keep your configuration consistent across multiple devices without manual import/export.")}
             </Paragraph>
 
             <FormSwitch
-                title="Enable Settings Sync"
-                description="When enabled, your settings can be synced to and from the cloud. Use the actions below to manually sync."
+                title={t("Enable Settings Sync")}
+                description={t("When enabled, your settings can be synced to and from the cloud. Use the actions below to manually sync.")}
                 value={cloud.settingsSync}
                 onChange={v => { cloud.settingsSync = v; }}
                 disabled={!isAuthenticated}
@@ -179,9 +182,9 @@ function CloudTab() {
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Sync Rules for This Device</Heading>
+            <Heading className={Margins.top20}>{t("Sync Rules for This Device")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                This setting controls how settings move between <strong>this device</strong> and the cloud. You can let changes flow both ways, or choose one place to be the main source of truth.
+                {t("This setting controls how settings move between this device and the cloud. You can let changes flow both ways, or choose one place to be the main source of truth.")}
             </Paragraph>
 
             <Select
@@ -203,7 +206,7 @@ function CloudTab() {
                 >
                     <Flex gap="8px" alignItems="center">
                         <CloudUploadIcon />
-                        Sync to Cloud
+                        {t("Sync to Cloud")}
                     </Flex>
                 </Button>
                 <Button
@@ -213,22 +216,22 @@ function CloudTab() {
                 >
                     <Flex gap="8px" alignItems="center">
                         <CloudDownloadIcon />
-                        Sync from Cloud
+                        {t("Sync from Cloud")}
                     </Flex>
                 </Button>
             </Flex>
 
             {!isAuthenticated && (
                 <Notice.Warning className={Margins.top8}>
-                    Enable cloud integration above to use settings sync features.
+                    {t("Enable cloud integration above to use settings sync features.")}
                 </Notice.Warning>
             )}
 
             <Divider className={Margins.top20} />
 
-            <Heading className={Margins.top20}>Danger Zone</Heading>
+            <Heading className={Margins.top20}>{t("Danger Zone")}</Heading>
             <Paragraph className={Margins.bottom16}>
-                Permanently delete all your data from the cloud. This action cannot be undone and will remove all synced settings and any other data stored on the cloud backend.
+                {t("Permanently delete all your data from the cloud. This action cannot be undone and will remove all synced settings and any other data stored on the cloud backend.")}
             </Paragraph>
 
             <Flex gap="8px">
@@ -240,7 +243,7 @@ function CloudTab() {
                 >
                     <Flex gap="8px" alignItems="center">
                         <TrashIcon color="currentColor" />
-                        Delete Cloud Settings
+                        {t("Delete Cloud Settings")}
                     </Flex>
                 </Button>
                 <Button
@@ -248,17 +251,17 @@ function CloudTab() {
                     size="medium"
                     disabled={!isAuthenticated}
                     onClick={() => Alerts.show({
-                        title: "Delete Cloud Account",
-                        body: "Are you sure you want to permanently delete your cloud account and all associated data? This action cannot be undone.",
+                        title: t("Delete Cloud Account"),
+                        body: t("Are you sure you want to permanently delete your cloud account and all associated data? This action cannot be undone."),
                         onConfirm: eraseAllCloudData,
-                        confirmText: "Delete Account",
+                        confirmText: t("Delete Account"),
                         confirmColor: "vc-cloud-erase-data-danger-btn",
-                        cancelText: "Cancel"
+                        cancelText: t("Cancel")
                     })}
                 >
                     <Flex gap="8px" alignItems="center">
                         <SkullIcon color="currentColor" />
-                        Delete Cloud Account
+                        {t("Delete Cloud Account")}
                     </Flex>
                 </Button>
             </Flex>

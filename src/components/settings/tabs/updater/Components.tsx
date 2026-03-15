@@ -13,6 +13,7 @@ import { Paragraph } from "@components/Paragraph";
 import { Span } from "@components/Span";
 import { Margins } from "@utils/margins";
 import { relaunch } from "@utils/native";
+import { useSettingsI18n } from "@utils/settingsI18n";
 import { changes, checkForUpdates, update, updateError } from "@utils/updater";
 import { Alerts, React, Toasts, useState } from "@webpack/common";
 
@@ -60,10 +61,12 @@ export function Changes({ updates, repo, repoPending }: CommonProps & { updates:
 }
 
 export function Newer(props: CommonProps) {
+    const t = useSettingsI18n();
+
     return (
         <>
             <Paragraph>
-                Your local copy has more recent commits than the remote repository. This usually happens when you've made local changes. Please stash or reset them before updating.
+                {t("Your local copy has more recent commits than the remote repository. This usually happens when you've made local changes. Please stash or reset them before updating.")}
             </Paragraph>
             <Changes {...props} updates={changes} />
         </>
@@ -71,6 +74,7 @@ export function Newer(props: CommonProps) {
 }
 
 export function Updatable(props: CommonProps) {
+    const t = useSettingsI18n();
     const [updates, setUpdates] = useState(changes);
     const [isChecking, setIsChecking] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -92,7 +96,7 @@ export function Updatable(props: CommonProps) {
                             setUpdates([]);
 
                             Toasts.show({
-                                message: "No updates found!",
+                                message: t("No updates found!"),
                                 id: Toasts.genId(),
                                 type: Toasts.Type.MESSAGE,
                                 options: {
@@ -102,7 +106,7 @@ export function Updatable(props: CommonProps) {
                         }
                     })}
                 >
-                    Check for Updates
+                    {t("Check for Updates")}
                 </Button>
                 {isOutdated && (
                     <Button
@@ -115,10 +119,10 @@ export function Updatable(props: CommonProps) {
 
                                 await new Promise<void>(r => {
                                     Alerts.show({
-                                        title: "Update Success!",
-                                        body: "Successfully updated. Restart now to apply the changes?",
-                                        confirmText: "Restart",
-                                        cancelText: "Not now!",
+                                        title: t("Update Success!"),
+                                        body: t("Successfully updated. Restart now to apply the changes?"),
+                                        confirmText: t("Restart"),
+                                        cancelText: t("Not now!"),
                                         onConfirm() {
                                             relaunch();
                                             r();
@@ -129,27 +133,29 @@ export function Updatable(props: CommonProps) {
                             }
                         })}
                     >
-                        Update Now
+                        {t("Update Now")}
                     </Button>
                 )}
             </Flex>
             {!updates && updateError ? (
                 <>
-                    <Span size="md" weight="medium" color="text-strong">Error checking for updates</Span>
+                    <Span size="md" weight="medium" color="text-strong">{t("Error checking for updates")}</Span>
                     <ErrorCard className={Margins.top8} style={{ padding: "1em" }}>
-                        <p>{updateError.stderr || updateError.stdout || "An unknown error occurred"}</p>
+                        <p>{updateError.stderr || updateError.stdout || t("An unknown error occurred")}</p>
                     </ErrorCard>
                 </>
             ) : isOutdated ? (
                 <>
                     <Paragraph>
-                        There {updates.length === 1 ? "is 1 update" : `are ${updates.length} updates`} available. Click the button below to download and install.
+                        {updates.length === 1
+                            ? t("There is 1 update available. Click the button below to download and install.")
+                            : t("There are {count} updates available. Click the button below to download and install.", { count: updates.length })}
                     </Paragraph>
                     <Changes updates={updates} {...props} />
                 </>
             ) : (
                 <Paragraph>
-                    You're running the latest version of Chocord.
+                    {t("You're running the latest version of Chocord.")}
                 </Paragraph>
             )}
         </>

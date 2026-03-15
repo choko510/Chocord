@@ -32,6 +32,7 @@ import { proxyLazy } from "@utils/lazy";
 import { Margins } from "@utils/margins";
 import { classes, isObjectEmpty } from "@utils/misc";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "@utils/modal";
+import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
 import { OptionType, Plugin } from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy } from "@webpack";
@@ -76,11 +77,12 @@ export function makeDummyUser(user: { username: string; id?: string; avatar?: st
 }
 
 export default function PluginModal({ plugin, onRestartNeeded, onClose, transitionState, descriptionOverride }: PluginModalProps) {
+    const t = useSettingsI18n();
     const pluginSettings = useSettings([`plugins.${plugin.name}.*`]).plugins[plugin.name];
     const hasSettings = Boolean(pluginSettings && plugin.options && !isObjectEmpty(plugin.options));
 
     // avoid layout shift by showing dummy users while loading users
-    const fallbackAuthors = useMemo(() => [makeDummyUser({ username: "Loading...", id: "-1465912127305809920" })], []);
+    const fallbackAuthors = useMemo(() => [makeDummyUser({ username: t("Loading..."), id: "-1465912127305809920" })], [t]);
     const [authors, setAuthors] = useState<Partial<User>[]>([]);
 
     useEffect(() => {
@@ -106,7 +108,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
 
     function renderSettings() {
         if (!hasSettings || !plugin.options)
-            return <Paragraph>There are no settings for this plugin.</Paragraph>;
+            return <Paragraph>{t("There are no settings for this plugin.")}</Paragraph>;
 
         const options = Object.entries(plugin.options).map(([key, setting]) => {
             if (setting.type === OptionType.CUSTOM || setting.hidden) return null;
@@ -171,7 +173,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                     <BaseText size="sm" className={cl("description")}>{descriptionOverride ?? plugin.description}</BaseText>
                     {!!plugin.settingsAboutComponent && (
                         <div className={Margins.top8}>
-                            <ErrorBoundary message="An error occurred while rendering this plugin's custom Info Component">
+                            <ErrorBoundary message={t("An error occurred while rendering this plugin's custom Info Component")}>
                                 <plugin.settingsAboutComponent />
                             </ErrorBoundary>
                         </div>
@@ -184,7 +186,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
 
             <ModalContent className={"vc-settings-modal-content"}>
                 <section>
-                    <BaseText size="lg" weight="semibold" color="text-strong" className={Margins.bottom8}>Authors</BaseText>
+                    <BaseText size="lg" weight="semibold" color="text-strong" className={Margins.bottom8}>{t("Authors")}</BaseText>
                     <div style={{ width: "fit-content" }}>
                         <ErrorBoundary noop>
                             <UserSummaryItem
@@ -212,7 +214,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                 </section>
 
                 <section>
-                    <BaseText size="lg" weight="semibold" color="text-strong" className={classes(Margins.top16, Margins.bottom8)}>Settings</BaseText>
+                    <BaseText size="lg" weight="semibold" color="text-strong" className={classes(Margins.top16, Margins.bottom8)}>{t("Settings")}</BaseText>
                     {renderSettings()}
                 </section>
             </ModalContent>
@@ -220,7 +222,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                 <Flex flexDirection="column" style={{ width: "100%" }}>
                     <Flex style={{ justifyContent: "space-between", alignItems: "center" }}>
                         {hasSettings ? (
-                            <Tooltip text="Reset to default settings" shouldShow={!isObjectEmpty(pluginSettings)}>
+                            <Tooltip text={t("Reset to default settings")} shouldShow={!isObjectEmpty(pluginSettings)}>
                                 {({ onMouseEnter, onMouseLeave }) => (
                                     <Button
                                         className={cl("disable-warning")}
@@ -230,7 +232,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                                         onMouseEnter={onMouseEnter}
                                         onMouseLeave={onMouseLeave}
                                     >
-                                        Reset
+                                        {t("Reset")}
                                     </Button>
                                 )}
                             </Tooltip>
@@ -238,11 +240,11 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                         {!pluginMeta.userPlugin && (
                             <div className={cl("links")}>
                                 <WebsiteButton
-                                    text="Website"
+                                    text={t("Website")}
                                     href={isEquicordPlugin || isChocordPlugin ? `https://equicord.org/plugins/${plugin.name}` : `https://vencord.dev/plugins/${plugin.name}`}
                                 />
                                 <GithubButton
-                                    text="Source Code"
+                                    text={t("Source Code")}
                                     href={`https://github.com/${gitRemote}/tree/main/${pluginMeta.folderName}`}
                                 />
                             </div>
@@ -301,7 +303,7 @@ function resetSettings(plugin: Plugin, onRestartNeeded?: (pluginName: string) =>
     }
 
     Toasts.show({
-        message: `Settings for ${pluginName} have been reset.`,
+        message: translateSettingsText("Settings for {plugin} have been reset.", { plugin: pluginName }),
         id: Toasts.genId(),
         type: Toasts.Type.SUCCESS,
         options: {
@@ -315,9 +317,9 @@ export function openWarningModal(plugin?: Plugin | null, onRestartNeeded?: (plug
         <ConfirmModal
             {...props}
             className={cl("confirm")}
-            header={isPlugin ? "Reset Settings" : "Disable Plugins"}
-            confirmText={isPlugin ? "Reset" : "Disable All"}
-            cancelText="Cancel"
+            header={isPlugin ? translateSettingsText("Reset Settings") : translateSettingsText("Disable Plugins")}
+            confirmText={isPlugin ? translateSettingsText("Reset") : translateSettingsText("Disable All")}
+            cancelText={translateSettingsText("Cancel")}
             onConfirm={() => {
                 if (isPlugin && plugin) {
                     resetSettings(plugin, onRestartNeeded);
@@ -329,13 +331,13 @@ export function openWarningModal(plugin?: Plugin | null, onRestartNeeded?: (plug
         >
             <Paragraph>
                 {isPlugin
-                    ? <>Are you sure you want to reset all settings for <strong>{plugin?.name}</strong> to their default values?</>
-                    : `Are you sure you want to disable ${enabledPlugins} plugins?`
+                    ? <>{translateSettingsText("Are you sure you want to reset all settings for {plugin} to their default values?", { plugin: plugin?.name ?? "" })}</>
+                    : translateSettingsText("Are you sure you want to disable {count} plugins?", { count: enabledPlugins ?? 0 })
                 }
             </Paragraph>
             <div className={classes(Margins.top16, cl("warning"))}>
                 <WarningIcon color="var(--text-feedback-critical)" />
-                <span>This action cannot be undone.</span>
+                <span>{translateSettingsText("This action cannot be undone.")}</span>
             </div>
         </ConfirmModal>
     ));
