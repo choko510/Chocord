@@ -5,5 +5,14 @@
  */
 
 import ChannelTabsPlugin from "@equicordplugins/channelTabs";
+import { Devs, EquicordDevs } from "@utils/constants";
+import definePlugin from "@utils/types";
 
-export default ChannelTabsPlugin;
+export default definePlugin({
+    ...ChannelTabsPlugin,
+    name: "ChannelTabs",
+    description: "Group your commonly visited channels in tabs, like a browser",
+    authors: [Devs.TheSun, Devs.TheKodeToad, EquicordDevs.keifufu, Devs.Nickyux, EquicordDevs.DiabeloDEV, EquicordDevs.justjxke],
+    dependencies: ["ContextMenuAPI"],
+    patches: ChannelTabsPlugin.patches
+});
