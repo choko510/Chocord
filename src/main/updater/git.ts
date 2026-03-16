@@ -28,34 +28,37 @@ const VENCORD_SRC_DIR = join(__dirname, "..");
 const EQUICORD_DIR = join(__dirname, "../../");
 
 const execFile = promisify(cpExecFile);
+const GIT_QUERY_TIMEOUT_MS = 15_000;
+const GIT_FETCH_TIMEOUT_MS = 60_000;
+const GIT_PULL_TIMEOUT_MS = 90_000;
 
 const isFlatpak = process.platform === "linux" && !!process.env.FLATPAK_ID;
 
 if (process.platform === "darwin") process.env.PATH = `/usr/local/bin:${process.env.PATH}`;
 
-function git(...args: string[]) {
-    const opts = { cwd: VENCORD_SRC_DIR };
+function git(timeout: number, ...args: string[]) {
+    const opts = { cwd: VENCORD_SRC_DIR, timeout };
 
     if (isFlatpak) return execFile("flatpak-spawn", ["--host", "git", ...args], opts);
     else return execFile("git", args, opts);
 }
 
 async function getRepo() {
-    const res = await git("remote", "get-url", "origin");
+    const res = await git(GIT_QUERY_TIMEOUT_MS, "remote", "get-url", "origin");
     return res.stdout.trim()
         .replace(/git@(.+):/, "https://$1/")
         .replace(/\.git$/, "");
 }
 
 async function calculateGitChanges() {
-    await git("fetch");
+    await git(GIT_FETCH_TIMEOUT_MS, "fetch");
 
-    const branch = (await git("branch", "--show-current")).stdout.trim();
+    const branch = (await git(GIT_QUERY_TIMEOUT_MS, "branch", "--show-current")).stdout.trim();
 
-    const existsOnOrigin = (await git("ls-remote", "origin", branch)).stdout.length > 0;
+    const existsOnOrigin = (await git(GIT_QUERY_TIMEOUT_MS, "ls-remote", "origin", branch)).stdout.length > 0;
     if (!existsOnOrigin) return [];
 
-    const res = await git("log", `HEAD...origin/${branch}`, "--pretty=format:%an/%h/%s");
+    const res = await git(GIT_QUERY_TIMEOUT_MS, "log", `HEAD...origin/${branch}`, "--pretty=format:%an/%h/%s");
 
     const commits = res.stdout.trim();
     return commits ? commits.split("\n").map(line => {
@@ -68,7 +71,7 @@ async function calculateGitChanges() {
 }
 
 async function pull() {
-    const res = await git("pull");
+    const res = await git(GIT_PULL_TIMEOUT_MS, "pull");
     return res.stdout.includes("Fast-forward");
 }
 

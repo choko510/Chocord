@@ -37,7 +37,7 @@ import { isTruthy } from "@utils/guards";
 import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
-import { useAwaiter, useIntersection } from "@utils/react";
+import { useAwaiter } from "@utils/react";
 import { useSettingsI18n } from "@utils/settingsI18n";
 import { Alerts, lodash, Parser, React, Select, SelectedChannelStore, TextInput, Toasts, Tooltip, useCallback, useMemo, useState, useStateFromStores } from "@webpack/common";
 import { JSX } from "react";
@@ -508,30 +508,13 @@ export default function PluginSettings() {
 
         return { enabledStockPlugins, enabledUserPlugins, enabledPlugins };
     }, [nonApiPlugins, settings.plugins]);
-    const pluginsToLoad = Math.min(36, pluginEntries.length);
-    const [visibleCount, setVisibleCount] = React.useState(pluginsToLoad);
-    const loadMore = React.useCallback(() => {
-        setVisibleCount(v => Math.min(v + pluginsToLoad, pluginEntries.length));
-    }, [pluginEntries.length]);
-
-    const dLoadMore = useMemo(() => debounce(loadMore, 100), [loadMore]);
-    React.useEffect(() => () => dLoadMore.cancel(), [dLoadMore]);
-
-    const [sentinelRef, isSentinelVisible] = useIntersection();
-    React.useEffect(() => {
-        if (isSentinelVisible && visibleCount < pluginEntries.length) {
-            dLoadMore();
-        }
-    }, [isSentinelVisible, visibleCount, pluginEntries.length, dLoadMore]);
-
-    const visiblePluginEntries = pluginEntries.slice(0, visibleCount);
-    const groupedVisiblePlugins = useMemo(() => {
+    const groupedPlugins = useMemo(() => {
         const groupedPlugins = new Map<PluginCategory, Array<typeof Plugins[keyof typeof Plugins]>>();
         for (const category of PLUGIN_CATEGORY_ORDER) {
             groupedPlugins.set(category, []);
         }
 
-        for (const { category, plugin } of visiblePluginEntries) {
+        for (const { category, plugin } of pluginEntries) {
             groupedPlugins.get(category)?.push(plugin);
         }
 
@@ -541,7 +524,7 @@ export default function PluginSettings() {
                 plugins: groupedPlugins.get(category) ?? []
             }))
             .filter(({ plugins }) => plugins.length > 0);
-    }, [visiblePluginEntries]);
+    }, [pluginEntries]);
 
     return (
         <SettingsTab>
@@ -615,8 +598,8 @@ export default function PluginSettings() {
             {pluginEntries.length || requiredPlugins.length
                 ? (
                     <>
-                        {groupedVisiblePlugins.length
-                            ? groupedVisiblePlugins.map(({ category, plugins }) => {
+                        {groupedPlugins.length
+                            ? groupedPlugins.map(({ category, plugins }) => {
                                 const isCollapsed = collapsedCategories.has(category);
                                 return (
                                     <section key={category} className={cl("category-section")}>
@@ -645,9 +628,6 @@ export default function PluginSettings() {
                             })
                             : <Paragraph>{t("No plugins meet the search criteria.")}</Paragraph>
                         }
-                        {visibleCount < pluginEntries.length && (
-                            <div ref={sentinelRef} style={{ height: 32 }} />
-                        )}
                     </>
                 )
                 : <ExcludedPluginsList search={search} />

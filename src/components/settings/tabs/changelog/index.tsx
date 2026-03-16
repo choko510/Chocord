@@ -244,6 +244,7 @@ function ChangelogContent() {
     );
     const [showHistory, setShowHistory] = React.useState(false);
     const [recentlyChecked, setRecentlyChecked] = React.useState(false);
+    const hasLoadedInitialData = React.useRef(false);
 
     React.useEffect(() => {
         const init = async () => {
@@ -441,25 +442,44 @@ function ChangelogContent() {
         } finally {
             setIsLoading(false);
         }
-    }, [repoPending, repoErr, loadNewPlugins, loadChangelogHistory, t]);
+    }, [repoPending, repoErr, loadChangelogHistory, t]);
 
     React.useEffect(() => {
+        if (repoPending || hasLoadedInitialData.current) {
+            return () => {};
+        }
+
+        hasLoadedInitialData.current = true;
+        let cancelled = false;
+
         const loadInitialData = async () => {
-            if (!repoPending && !repoErr) {
+            if (!repoErr) {
                 await loadNewPlugins();
+                if (cancelled) return;
+
                 const logged = await ensureLocalUpdateLogged();
+                if (cancelled) return;
+
                 if (!logged) {
                     await fetchChangelog();
                 } else {
                     setIsLoading(false);
                 }
-            } else if (!repoPending) {
-                // perseverance
-                await loadNewPlugins();
+                return;
+            }
+
+            // perseverance
+            await loadNewPlugins();
+            if (!cancelled) {
                 setIsLoading(false);
             }
         };
-        loadInitialData();
+
+        void loadInitialData();
+
+        return () => {
+            cancelled = true;
+        };
     }, [
         repoPending,
         repoErr,

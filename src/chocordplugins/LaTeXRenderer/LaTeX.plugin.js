@@ -125,9 +125,9 @@ window.MathJax={
 };
 __webpack_require__(/*! mathjax-full/es5/tex-chtml-full */ "./node_modules/mathjax-full/es5/tex-chtml-full.js");
 
-const CLASS_SCROLLER_INNER = BdApi.Webpack.getByKeys("navigationDescription", "scrollerInner")["scrollerInner"];
-const CLASS_MESSAGE_LIST_ITEM = BdApi.Webpack.getByKeys("messageListItem")["messageListItem"];
-const CLASS_MESSAGE_CONTENT = BdApi.Webpack.getByKeys('threadMessageAccessoryContentLeadingIcon')["messageContent"]
+const CLASS_SCROLLER_INNER = (BdApi.Webpack.getByKeys("navigationDescription", "scrollerInner") || {})["scrollerInner"] || "scrollerInner-fallback";
+const CLASS_MESSAGE_LIST_ITEM = (BdApi.Webpack.getByKeys("messageListItem") || {})["messageListItem"] || "messageListItem-fallback";
+const CLASS_MESSAGE_CONTENT = (BdApi.Webpack.getByKeys('threadMessageAccessoryContentLeadingIcon') || {})["messageContent"] || "messageContent-fallback";
 
 class Plugin {
   observer = null;

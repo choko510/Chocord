@@ -4,19 +4,24 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { registerCommand, unregisterCommand } from "@api/Commands";
 import { managedStyleRootNode } from "@api/Styles";
 import { createAndAppendStyle } from "@utils/css";
 import { Logger } from "@utils/Logger";
-import { find, findAll, findCssClasses, findStore } from "@webpack";
+import { findAll, findCssClasses, findStore, mapMangledModule } from "@webpack";
 import * as WebpackCommon from "@webpack/common";
-import { Alerts, React, showToast, Toasts, useStateFromStores } from "@webpack/common";
+import { Alerts, ContextMenuApi, React, showToast, Toasts, useStateFromStores } from "@webpack/common";
 
 type BdFilter = (module: unknown) => boolean;
 
-interface BdBulkQuery {
-    filter?: BdFilter;
+interface BdWebpackSearchOptions {
     defaultExport?: boolean;
     searchDefault?: boolean;
+    searchExports?: boolean;
+}
+
+interface BdBulkQuery extends BdWebpackSearchOptions {
+    filter?: BdFilter;
 }
 
 interface BdFindInTreeOptions {
@@ -43,15 +48,74 @@ interface NativeFetchHelper {
     fetchFile?(url: string, init?: SerializableRequestInit): Promise<NativeFetchResponse>;
 }
 
-const compatStores = Object.freeze({ ...WebpackCommon });
+interface BdMenuItem {
+    type?: string;
+    label?: React.ReactNode;
+    action?: () => void;
+    checked?: boolean | (() => boolean);
+    disabled?: boolean;
+    items?: BdMenuItem[];
+}
+
+interface BdChangelogEntry {
+    title?: string;
+    type?: string;
+    items?: unknown[];
+}
+
+interface BdChangelogModalOptions {
+    title?: string;
+    subtitle?: string;
+    blurb?: string;
+    changes?: BdChangelogEntry[];
+}
+
+interface BdNoticeOptions {
+    type?: string;
+    timeout?: number;
+}
+
+interface BdMatcherMeta {
+    keys?: readonly string[];
+    storeName?: string;
+}
+
+// Legacy BD plugins often destructure stores at module-eval time; keep lookups live instead of snapshotting.
+const compatStores = new Proxy(WebpackCommon as Record<string, unknown>, {
+    get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+        if (value !== undefined || typeof prop !== "string" || !prop.endsWith("Store")) {
+            return value;
+        }
+
+        return findStore(prop);
+    }
+});
 const legacyWebpackKeyAliases: Readonly<Record<string, readonly string[]>> = Object.freeze({
     threadMessageAccessoryContentLeadingIcon: ["messageContent"]
 });
 const BD_COMPAT_MAX_CACHE_ENTRIES = 256;
 const BD_COMPAT_MAX_FACTORY_CACHE_ENTRIES = 16;
 const BD_COMPAT_CACHE_KEY_SEPARATOR = "\u0000";
+const BD_COMPAT_DATA_STORAGE_PREFIX = "bdCompat:data:";
+const BD_COMPAT_PROXY_PROBE_KEY = "is this a proxy that returns values for any key?";
+const BD_COMPAT_FALLBACK_CLASS_NAME = "bd-compat-empty";
+const BD_COMPAT_MATCHER_META = Symbol("bdCompatMatcherMeta");
 const functionSourceCache = new WeakMap<Function, string>();
 const legacyPluginFactoryCache = new Map<string, Function>();
+const BD_COMMAND_OPTION_TYPES = Object.freeze({
+    SUB_COMMAND: 1,
+    SUB_COMMAND_GROUP: 2,
+    STRING: 3,
+    INTEGER: 4,
+    BOOLEAN: 5,
+    USER: 6,
+    CHANNEL: 7,
+    ROLE: 8,
+    MENTIONABLE: 9,
+    NUMBER: 10,
+    ATTACHMENT: 11
+});
 
 function getCacheKey(parts: readonly string[]) {
     return parts.join(BD_COMPAT_CACHE_KEY_SEPARATOR);
@@ -143,6 +207,51 @@ function resolveLocalStorage() {
     } catch {
         return memoryStorage;
     }
+}
+
+function getLegacyGlobalScopes(...candidates: unknown[]) {
+    const scopes = [] as Record<string, unknown>[];
+
+    for (const candidate of candidates) {
+        if (!candidate || (typeof candidate !== "object" && typeof candidate !== "function")) continue;
+
+        const scope = candidate as Record<string, unknown>;
+        if (scopes.includes(scope)) continue;
+        scopes.push(scope);
+    }
+
+    return scopes;
+}
+
+function bindLegacyBdApi(bdApi: unknown, scopes: ReadonlyArray<Record<string, unknown>>) {
+    const boundScopes = [] as Array<{
+        scope: Record<string, unknown>;
+        hadOwn: boolean;
+        previousValue: unknown;
+    }>;
+
+    for (const scope of scopes) {
+        const hadOwn = Object.prototype.hasOwnProperty.call(scope, "BdApi");
+        const previousValue = scope.BdApi;
+        const didSet = Reflect.set(scope, "BdApi", bdApi);
+        if (!didSet) continue;
+
+        boundScopes.push({
+            scope,
+            hadOwn,
+            previousValue
+        });
+    }
+
+    return () => {
+        for (const { scope, hadOwn, previousValue } of boundScopes.reverse()) {
+            if (hadOwn) {
+                Reflect.set(scope, "BdApi", previousValue);
+            } else {
+                Reflect.deleteProperty(scope, "BdApi");
+            }
+        }
+    };
 }
 
 function toHeaderRecord(headers: HeadersInit | undefined) {
@@ -495,9 +604,11 @@ function toToastType(type: unknown) {
 }
 
 class BdRuntime {
+    private readonly logger = new Logger("BdCompatRuntime");
     private readonly patchers = new Set<CompatPatcher>();
     private readonly styles = new Set<BdApiStyleManager>();
     private readonly apiInstances = new Map<string, Record<string, unknown>>();
+    private readonly cleanups = new Set<() => void>();
     private readonly webpackApi = this.createWebpackApi();
 
     constructor(private readonly defaultPluginName: string) { }
@@ -511,9 +622,43 @@ class BdRuntime {
     }
 
     private createWebpackApi() {
+        const runtimeLogger = this.logger;
+        const withMatcherMeta = (matcher: BdFilter, meta: BdMatcherMeta) => {
+            try {
+                Object.defineProperty(matcher, BD_COMPAT_MATCHER_META, {
+                    value: meta,
+                    configurable: true
+                });
+            } catch {
+                // noop
+            }
+
+            return matcher;
+        };
+        const getMatcherMeta = (matcher: BdFilter): BdMatcherMeta | null => {
+            const meta = (matcher as BdFilter & { [BD_COMPAT_MATCHER_META]?: BdMatcherMeta; })[BD_COMPAT_MATCHER_META];
+            return meta ?? null;
+        };
         const Filters = {
-            byKeys: (...keys: string[]) => (module: unknown) =>
-                !!module && typeof module === "object" && keys.every(key => (module as Record<string, unknown>)[key] !== undefined),
+            byKeys: (...keys: string[]) => withMatcherMeta(
+                (module: unknown) =>
+                    !!module && typeof module === "object" && keys.every(key => (module as Record<string, unknown>)[key] !== undefined),
+                { keys }
+            ),
+            byStoreName: (name: string) => withMatcherMeta((module: unknown) => {
+                if (!module || (typeof module !== "object" && typeof module !== "function")) return false;
+                const store = module as {
+                    constructor?: { displayName?: string; };
+                    getName?: () => string;
+                };
+                if (store.constructor?.displayName === name) return true;
+
+                try {
+                    return typeof store.getName === "function" && store.getName() === name;
+                } catch {
+                    return false;
+                }
+            }, { storeName: name }),
             bySource: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
             byStrings: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
         };
@@ -521,33 +666,419 @@ class BdRuntime {
         const bestModuleByKeysCache = new Map<string, Record<string, unknown> | null>();
         const normalizedModuleCache = new WeakMap<Record<string, unknown>, Map<string, Record<string, unknown>>>();
 
+        const isWebpackSearchOptions = (value: unknown): value is BdWebpackSearchOptions => {
+            if (!value || typeof value !== "object" || Array.isArray(value) || value instanceof RegExp) {
+                return false;
+            }
+
+            return "defaultExport" in value || "searchDefault" in value || "searchExports" in value;
+        };
+
+        const webpackMatcherPropertyKeysCache = new WeakMap<BdFilter, string[]>();
+        const webpackStoreNameMatcherCache = new WeakMap<BdFilter, string | null>();
+        const ignoredWebpackMatcherKeys = new Set([
+            "call",
+            "apply",
+            "bind",
+            "constructor",
+            "default",
+            "hasOwnProperty",
+            "includes",
+            "length",
+            "name",
+            "prototype",
+            "toString",
+            "valueOf"
+        ]);
+        const isWebpackCodeMatch = (value: unknown): value is string | RegExp =>
+            typeof value === "string" || value instanceof RegExp;
+        const isProxyGetterFunction = (value: unknown) => {
+            if (typeof value !== "function") return false;
+            const source = getFunctionSource(value);
+
+            return source.includes(".get(t,n)")
+                || source.includes("=>e.get(")
+                || source.includes("=>t.get(")
+                || source.includes("=>n.get(");
+        };
+
+        const isLikelyAnyKeyProxy = (value: unknown) => {
+            if (!value || (typeof value !== "object" && typeof value !== "function")) return false;
+
+            const target = value as Record<string, unknown>;
+            try {
+                const probeResult = target[BD_COMPAT_PROXY_PROBE_KEY];
+                if (probeResult === undefined) {
+                    return false;
+                }
+
+                Reflect.deleteProperty(target, BD_COMPAT_PROXY_PROBE_KEY);
+                return true;
+            } catch {
+                return false;
+            }
+        };
+
+        const getWebpackMatcherPropertyKeys = (matcher: BdFilter) => {
+            const cachedKeys = webpackMatcherPropertyKeysCache.get(matcher);
+            if (cachedKeys) {
+                return cachedKeys;
+            }
+
+            const matcherMeta = getMatcherMeta(matcher);
+            if (Array.isArray(matcherMeta?.keys) && matcherMeta.keys.length) {
+                const normalizedKeys = [...new Set(
+                    matcherMeta.keys.filter((key): key is string => typeof key === "string" && key.length > 0)
+                )];
+                webpackMatcherPropertyKeysCache.set(matcher, normalizedKeys);
+                return normalizedKeys;
+            }
+
+            const extractedKeys = new Set<string>();
+            const matcherSource = getFunctionSource(matcher);
+            const dotAccessMatcher = /\.\s*([A-Za-z_$][\w$]*)/g;
+
+            let nextMatch = dotAccessMatcher.exec(matcherSource);
+            while (nextMatch) {
+                const key = nextMatch[1];
+                if (key && !ignoredWebpackMatcherKeys.has(key)) {
+                    extractedKeys.add(key);
+                }
+
+                nextMatch = dotAccessMatcher.exec(matcherSource);
+            }
+
+            const propertyKeys = [...extractedKeys];
+            webpackMatcherPropertyKeysCache.set(matcher, propertyKeys);
+            return propertyKeys;
+        };
+
+        const getStoreNameFromMatcher = (matcher: BdFilter) => {
+            const cachedStoreName = webpackStoreNameMatcherCache.get(matcher);
+            if (cachedStoreName !== undefined) {
+                return cachedStoreName;
+            }
+
+            const matcherMeta = getMatcherMeta(matcher);
+            if (typeof matcherMeta?.storeName === "string" && matcherMeta.storeName.length > 0) {
+                webpackStoreNameMatcherCache.set(matcher, matcherMeta.storeName);
+                return matcherMeta.storeName;
+            }
+
+            const matcherSource = getFunctionSource(matcher);
+            const parsedStoreName = matcherSource.match(/getName\??\.\(\)\s*===\s*["'`]([^"'`]+)["'`]/)?.[1]
+                ?? matcherSource.match(/constructor\??\.displayName\s*===\s*["'`]([^"'`]+)["'`]/)?.[1]
+                ?? null;
+
+            webpackStoreNameMatcherCache.set(matcher, parsedStoreName);
+            return parsedStoreName;
+        };
+
+        const getWebpackSearchCandidates = (module: unknown, options: BdWebpackSearchOptions) => {
+            const candidates: unknown[] = [];
+            const seenCandidates = new Set<unknown>();
+            const addCandidate = (candidate: unknown) => {
+                if (!candidate || (typeof candidate !== "object" && typeof candidate !== "function")) return;
+                if (isLikelyAnyKeyProxy(candidate)) return;
+                if (seenCandidates.has(candidate)) return;
+                seenCandidates.add(candidate);
+                candidates.push(candidate);
+            };
+
+            const moduleRecord = module && typeof module === "object"
+                ? module as Record<string, unknown>
+                : null;
+
+            if (options.searchExports && moduleRecord) {
+                Object.values(moduleRecord).forEach(addCandidate);
+
+                if (options.searchDefault !== false) {
+                    const defaultExport = moduleRecord.default;
+                    if (defaultExport && typeof defaultExport === "object") {
+                        Object.values(defaultExport as Record<string, unknown>).forEach(addCandidate);
+                    }
+                }
+            }
+
+            addCandidate(module);
+
+            if (options.searchDefault !== false && moduleRecord && "default" in moduleRecord) {
+                addCandidate(moduleRecord.default);
+            }
+
+            return candidates;
+        };
+
+        const findWebpackMatch = (
+            module: unknown,
+            matcher: BdFilter,
+            options: BdWebpackSearchOptions
+        ): { match: unknown; module: unknown; } | null => {
+            for (const candidate of getWebpackSearchCandidates(module, options)) {
+                try {
+                    if (!matcher(candidate)) continue;
+                    return { match: candidate, module };
+                } catch {
+                    // noop
+                }
+            }
+
+            return null;
+        };
+
+        const scoreWebpackFilterValue = (value: unknown) => {
+            if (value === undefined) return -12;
+            if (value === null) return -5;
+            if (typeof value === "function") return isProxyGetterFunction(value) ? -25 : 6;
+            if (Array.isArray(value)) return 10;
+            if (value && typeof value === "object") return 8;
+            if (typeof value === "string") return value.length ? 10 : 0;
+            if (typeof value === "number" || typeof value === "boolean") return 3;
+            return 1;
+        };
+
+        const scoreWebpackFilterMatch = (
+            resolvedMatch: { match: unknown; module: unknown; },
+            propertyKeys: readonly string[]
+        ) => {
+            const scoreTarget = (resolvedMatch.match && (typeof resolvedMatch.match === "object" || typeof resolvedMatch.match === "function"))
+                ? resolvedMatch.match as Record<string, unknown>
+                : null;
+
+            let score = 0;
+            for (const key of propertyKeys) {
+                const value = scoreTarget?.[key];
+                score += scoreWebpackFilterValue(value);
+
+                // Handle common highlight.js probe used by legacy plugins.
+                if (key === "listLanguages" && typeof value === "function") {
+                    try {
+                        score += Array.isArray(value.call(resolvedMatch.match)) ? 80 : -25;
+                    } catch {
+                        score -= 12;
+                    }
+                }
+            }
+
+            if (
+                resolvedMatch.module &&
+                typeof resolvedMatch.module === "object" &&
+                "default" in resolvedMatch.module &&
+                (resolvedMatch.module as { default?: unknown; }).default === resolvedMatch.match
+            ) {
+                score += 10;
+            }
+
+            return score;
+        };
+
+        const hasProxyGetterAtKeys = (candidate: unknown, keys: readonly string[]) => {
+            if (!candidate || (typeof candidate !== "object" && typeof candidate !== "function")) return false;
+
+            const candidateRecord = candidate as Record<string, unknown>;
+            return keys.some(key => isProxyGetterFunction(candidateRecord[key]));
+        };
+
+        const resolveKnownMatcherFallback = (keys: readonly string[]) => {
+            if (!keys.length) return null;
+
+            const keySet = new Set(keys);
+            if (keySet.has("scrollerInner")) {
+                return Object.fromEntries(
+                    keys.map(key => [key, BD_COMPAT_FALLBACK_CLASS_NAME])
+                );
+            }
+
+            if (keySet.has("defaultProps") && keySet.has("renderEmbeds")) {
+                return {
+                    defaultProps: {
+                        renderEmbeds: () => null
+                    },
+                    prototype: {
+                        renderAttachments: () => null
+                    }
+                };
+            }
+
+            if (keySet.has("thin") && keySet.has("none")) {
+                return {
+                    thin: BD_COMPAT_FALLBACK_CLASS_NAME,
+                    none: BD_COMPAT_FALLBACK_CLASS_NAME
+                };
+            }
+
+            if (keySet.has("languageSelector") && keySet.has("fileName")) {
+                return {
+                    languageSelector: BD_COMPAT_FALLBACK_CLASS_NAME,
+                    fileName: BD_COMPAT_FALLBACK_CLASS_NAME
+                };
+            }
+
+            if (keySet.has("messageListItem")) {
+                return { messageListItem: BD_COMPAT_FALLBACK_CLASS_NAME };
+            }
+
+            return null;
+        };
+
+        const findBestWebpackFilterMatch = (matcher: BdFilter, options: BdWebpackSearchOptions) => {
+            const propertyKeys = getWebpackMatcherPropertyKeys(matcher);
+            const matches = [] as Array<{ match: unknown; module: unknown; score: number; }>;
+            const seenMatches = new Set<unknown>();
+
+            const matchedModules = findAll(
+                (module: unknown) => findWebpackMatch(module, matcher, options) !== null,
+                { topLevelOnly: true }
+            );
+
+            for (const module of matchedModules) {
+                const resolvedMatch = findWebpackMatch(module, matcher, options);
+                if (!resolvedMatch) continue;
+
+                const dedupeKey = resolvedMatch.match;
+                if (seenMatches.has(dedupeKey)) continue;
+                seenMatches.add(dedupeKey);
+
+                matches.push({
+                    ...resolvedMatch,
+                    score: scoreWebpackFilterMatch(resolvedMatch, propertyKeys)
+                });
+            }
+
+            if (!matches.length) return null;
+            matches.sort((left, right) => right.score - left.score);
+
+            const bestMatch = matches[0];
+            if (propertyKeys.length > 0 && bestMatch.score < 0) {
+                return null;
+            }
+
+            return bestMatch;
+        };
+
+        const getModule = (matcher: BdFilter, options: BdWebpackSearchOptions = {}) => {
+            if (typeof matcher !== "function") return null;
+
+            const resolvedOptions = {
+                searchDefault: true,
+                ...options
+            };
+            const propertyKeys = getWebpackMatcherPropertyKeys(matcher);
+
+            const resolvedMatch = findBestWebpackFilterMatch(matcher, resolvedOptions)
+                ?? (
+                    resolvedOptions.searchExports
+                        ? null
+                        : findBestWebpackFilterMatch(matcher, {
+                            ...resolvedOptions,
+                            searchExports: true
+                        })
+                );
+            if (!resolvedMatch) {
+                if (propertyKeys.length > 0) {
+                    const byKeysFallback = getByKeys(...propertyKeys);
+                    if (byKeysFallback && !hasProxyGetterAtKeys(byKeysFallback, propertyKeys)) {
+                        try {
+                            if (matcher(byKeysFallback)) {
+                                return byKeysFallback;
+                            }
+                        } catch {
+                            // noop
+                        }
+                    }
+                }
+
+                const parsedStoreName = getStoreNameFromMatcher(matcher);
+                if (!parsedStoreName) {
+                    const knownFallback = resolveKnownMatcherFallback(propertyKeys);
+                    if (knownFallback) {
+                        runtimeLogger.warn(
+                            `Using BetterDiscord compatibility fallback for unresolved matcher keys: ${propertyKeys.join(", ")}`
+                        );
+                        return knownFallback;
+                    }
+
+                    return null;
+                }
+
+                const fallbackStore = findStore(parsedStoreName);
+                if (!fallbackStore) {
+                    runtimeLogger.warn(`Failed to resolve BetterDiscord Webpack module for store "${parsedStoreName}".`);
+                    return null;
+                }
+
+                return fallbackStore;
+            }
+            if (resolvedOptions.defaultExport === false) return resolvedMatch.module;
+
+            if (
+                !resolvedOptions.searchExports &&
+                resolvedOptions.searchDefault !== false &&
+                resolvedMatch.module &&
+                typeof resolvedMatch.module === "object" &&
+                "default" in resolvedMatch.module
+            ) {
+                const defaultExport = (resolvedMatch.module as { default?: unknown; }).default;
+                if (defaultExport != null) {
+                    if (defaultExport === resolvedMatch.match) {
+                        return defaultExport;
+                    }
+
+                    try {
+                        if (matcher(defaultExport)) {
+                            return defaultExport;
+                        }
+                    } catch {
+                        // noop
+                    }
+
+                    // Preserve BetterDiscord-like behavior for wrapped default exports.
+                    const moduleExportKeys = Object.keys(resolvedMatch.module as Record<string, unknown>);
+                    if (moduleExportKeys.length <= 2 && moduleExportKeys.includes("default")) {
+                        return defaultExport;
+                    }
+                }
+
+            }
+
+            return resolvedMatch.match;
+        };
+
+        const getByStrings = (...parts: Array<string | RegExp | BdWebpackSearchOptions>) => {
+            if (!parts.length) return null;
+
+            const maybeOptions = parts[parts.length - 1];
+            const options = isWebpackSearchOptions(maybeOptions) ? maybeOptions : undefined;
+            const code = (options ? parts.slice(0, -1) : parts).filter(isWebpackCodeMatch);
+            if (!code.length) return null;
+
+            return getModule(Filters.byStrings(...code), options);
+        };
+
+        const getMangled = <T extends string>(
+            code: string | RegExp | Array<string | RegExp>,
+            mappers: Record<T, BdFilter>,
+            includeBlacklistedExports = false
+        ) => {
+            if (!mappers || typeof mappers !== "object") return {} as Record<T, unknown>;
+
+            return mapMangledModule(
+                code,
+                mappers as Record<T, (module: unknown) => boolean>,
+                includeBlacklistedExports
+            );
+        };
+
         const findModuleForBulkQuery = (query: BdBulkQuery) => {
             const matcher = query.filter;
             if (!matcher) return null;
-
-            const found = find((module: unknown) => {
-                if (matcher(module)) return true;
-
-                if (query.searchDefault !== false && module && typeof module === "object" && "default" in module) {
-                    return matcher((module as { default: unknown; }).default);
-                }
-                return false;
-            }, { isIndirect: true, topLevelOnly: true });
-
-            if (!found) return null;
-            if (query.defaultExport === false) return found;
-
-            if (query.searchDefault !== false && found && typeof found === "object" && "default" in found) {
-                return (found as { default: unknown; }).default;
-            }
-
-            return found;
+            return getModule(matcher, query);
         };
 
         const scoreWebpackValue = (value: unknown) => {
-            if (typeof value === "string") return 4;
+            if (typeof value === "string") return 6;
             if (typeof value === "number" || typeof value === "boolean") return 2;
-            if (typeof value === "function") return -3;
+            if (typeof value === "function") return isProxyGetterFunction(value) ? -30 : -1;
             if (value && typeof value === "object") return 1;
             if (value === null) return 0;
             return -4;
@@ -578,6 +1109,7 @@ class BdRuntime {
             const seenMatches = new Set<Record<string, unknown>>();
             for (const rawMatch of rawMatches) {
                 if (!rawMatch || typeof rawMatch !== "object") continue;
+                if (isLikelyAnyKeyProxy(rawMatch)) continue;
                 const match = rawMatch as Record<string, unknown>;
 
                 if (directFilter(match) && !seenMatches.has(match)) {
@@ -593,6 +1125,7 @@ class BdRuntime {
                     !seenMatches.has(defaultExport as Record<string, unknown>)
                 ) {
                     const directDefault = defaultExport as Record<string, unknown>;
+                    if (isLikelyAnyKeyProxy(directDefault)) continue;
                     seenMatches.add(directDefault);
                     candidates.push(directDefault);
                 }
@@ -639,30 +1172,15 @@ class BdRuntime {
             let normalized: Record<string, unknown> | null = null;
             const ensureNormalized = () => normalized ??= { ...match };
 
-            const getStringFromValue = (value: unknown, key: string) => {
+            const getStringFromValue = (value: unknown, _key: string) => {
                 if (typeof value === "string" && value.length) return value;
-                if (typeof value !== "function") return null;
-
-                const attempts = [
-                    () => value(key),
-                    () => value(),
-                    () => value.call(match, key),
-                    () => value.call(match)
-                ];
-
-                for (const attempt of attempts) {
-                    try {
-                        const resolved = attempt();
-                        if (typeof resolved === "string" && resolved.length) return resolved;
-                    } catch {
-                        // noop
-                    }
-                }
 
                 return null;
             };
 
-            const resolveFallbackClassName = (key: string) => {
+            const resolveFallbackClassName = (key: string, sourceValue: unknown) => {
+                if (typeof sourceValue === "function") return null;
+
                 const fallbackGetters = [
                     match.get,
                     (match.default as Record<string, unknown> | undefined)?.get
@@ -699,8 +1217,9 @@ class BdRuntime {
                 let resolvedValue: string | null = null;
 
                 for (const lookupKey of lookupKeys) {
-                    resolvedValue = getStringFromValue(base[lookupKey], lookupKey)
-                        ?? resolveFallbackClassName(lookupKey);
+                    const lookupValue = base[lookupKey];
+                    resolvedValue = getStringFromValue(lookupValue, lookupKey)
+                        ?? resolveFallbackClassName(lookupKey, lookupValue);
                     if (resolvedValue) break;
                 }
 
@@ -777,7 +1296,10 @@ class BdRuntime {
             Filters,
             Stores: compatStores,
             getByKeys,
+            getByStrings,
             getStore: (name: string) => findStore(name),
+            getModule,
+            getMangled,
             getBulk: (...queries: BdBulkQuery[]) => queries.map(findModuleForBulkQuery)
         };
     }
@@ -798,12 +1320,408 @@ class BdRuntime {
         this.styles.add(styles);
 
         const { webpackApi } = this;
+        const registeredCommands = new Set<string>();
+
+        const toDataNamespace = (value: unknown) => {
+            if (typeof value === "string" && value.length) return value;
+            if (value === null || value === undefined) return pluginName;
+            return String(value);
+        };
+
+        const toDataKey = (value: unknown) => String(value);
+        const toDataStorageKey = (namespace: string, key: string) =>
+            `${BD_COMPAT_DATA_STORAGE_PREFIX}${encodeURIComponent(namespace)}:${encodeURIComponent(key)}`;
+
+        const resolveDataLoadArgs = (args: unknown[]) => {
+            if (args.length === 1) {
+                return {
+                    namespace: pluginName,
+                    key: toDataKey(args[0])
+                };
+            }
+
+            if (args.length >= 2) {
+                return {
+                    namespace: toDataNamespace(args[0]),
+                    key: toDataKey(args[1])
+                };
+            }
+
+            logger.warn("BdApi.Data.load called without a key.");
+            return null;
+        };
+
+        const resolveDataSaveArgs = (args: unknown[]) => {
+            if (args.length === 2) {
+                return {
+                    namespace: pluginName,
+                    key: toDataKey(args[0]),
+                    value: args[1]
+                };
+            }
+
+            if (args.length >= 3) {
+                return {
+                    namespace: toDataNamespace(args[0]),
+                    key: toDataKey(args[1]),
+                    value: args[2]
+                };
+            }
+
+            logger.warn("BdApi.Data.save called without key/value.");
+            return null;
+        };
+
+        const dataApi = {
+            load: (...args: unknown[]) => {
+                const resolved = resolveDataLoadArgs(args);
+                if (!resolved) return undefined;
+
+                const storage = resolveLocalStorage();
+                const storageKey = toDataStorageKey(resolved.namespace, resolved.key);
+                const stored = storage.getItem(storageKey);
+                if (stored == null) return undefined;
+
+                try {
+                    return JSON.parse(stored);
+                } catch {
+                    return stored;
+                }
+            },
+            save: (...args: unknown[]) => {
+                const resolved = resolveDataSaveArgs(args);
+                if (!resolved) return undefined;
+
+                const storage = resolveLocalStorage();
+                const storageKey = toDataStorageKey(resolved.namespace, resolved.key);
+
+                try {
+                    const serialized = JSON.stringify(resolved.value);
+                    if (serialized === undefined) {
+                        storage.removeItem(storageKey);
+                    } else {
+                        storage.setItem(storageKey, serialized);
+                    }
+                } catch (error) {
+                    logger.error("Failed to persist BdApi.Data.save payload.", error);
+                    throw error;
+                }
+
+                return resolved.value;
+            },
+            delete: (...args: unknown[]) => {
+                const resolved = resolveDataLoadArgs(args);
+                if (!resolved) return false;
+
+                const storage = resolveLocalStorage();
+                const storageKey = toDataStorageKey(resolved.namespace, resolved.key);
+                storage.removeItem(storageKey);
+                return true;
+            }
+        };
+
+        const unregisterAllCompatCommands = () => {
+            for (const commandName of [...registeredCommands]) {
+                unregisterCommand(commandName);
+                registeredCommands.delete(commandName);
+            }
+        };
+
+        const commandApi = {
+            Types: {
+                OptionTypes: BD_COMMAND_OPTION_TYPES
+            },
+            register: (command: unknown) => {
+                if (!command || typeof command !== "object") {
+                    logger.warn("BdApi.Commands.register called with invalid command.");
+                    return;
+                }
+
+                const commandName = (command as { name?: unknown; }).name;
+                if (typeof commandName !== "string" || !commandName.length) {
+                    logger.warn("BdApi.Commands.register called without a command name.");
+                    return;
+                }
+
+                registerCommand(command as never, pluginName);
+                registeredCommands.add(commandName);
+            },
+            unregister: (name: unknown) => {
+                const commandName = typeof name === "string" ? name : String(name ?? "");
+                if (!commandName) return false;
+                registeredCommands.delete(commandName);
+                return unregisterCommand(commandName);
+            },
+            unregisterAll: () => unregisterAllCompatCommands()
+        };
+        this.cleanups.add(unregisterAllCompatCommands);
+
+        const toNoticeText = (content: unknown) => {
+            if (typeof content === "string") return content;
+            if (typeof content === "number" || typeof content === "boolean") return String(content);
+
+            if (typeof Node !== "undefined" && content instanceof Node) {
+                return content.textContent ?? "";
+            }
+
+            return `${pluginName} notice`;
+        };
+
+        const renderFallbackMenuItems = (items: BdMenuItem[], onClose?: () => void, prefix = "menu") => {
+            const renderEntries: React.ReactNode[] = [];
+
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                const key = `${prefix}-${index}`;
+                if (!item || typeof item !== "object") continue;
+
+                if (item.type === "separator") {
+                    renderEntries.push(React.createElement("hr", { key }));
+                    continue;
+                }
+
+                const nestedItems = Array.isArray(item.items) ? item.items : [];
+                if (item.type === "group") {
+                    renderEntries.push(...renderFallbackMenuItems(nestedItems, onClose, `${key}-group`));
+                    continue;
+                }
+
+                if (item.type === "submenu") {
+                    renderEntries.push(
+                        React.createElement(
+                            "div",
+                            { key, style: { padding: "4px 0" } },
+                            React.createElement("div", { style: { fontWeight: 600, marginBottom: 4 } }, item.label ?? "Submenu"),
+                            ...renderFallbackMenuItems(nestedItems, onClose, `${key}-submenu`)
+                        )
+                    );
+                    continue;
+                }
+
+                let checked = false;
+                if (typeof item.checked === "function") {
+                    try {
+                        checked = Boolean(item.checked());
+                    } catch (error) {
+                        logger.error("Failed to evaluate BdApi.ContextMenu toggle state.", error);
+                    }
+                } else {
+                    checked = Boolean(item.checked);
+                }
+
+                const labelPrefix = item.type === "toggle" ? (checked ? "[x] " : "[ ] ") : "";
+                const action = () => {
+                    item.action?.();
+                    onClose?.();
+                };
+
+                renderEntries.push(
+                    React.createElement(
+                        "button",
+                        {
+                            key,
+                            type: "button",
+                            disabled: item.disabled === true,
+                            onClick: action,
+                            style: {
+                                display: "block",
+                                width: "100%",
+                                textAlign: "left",
+                                padding: "6px 8px",
+                                background: "transparent",
+                                color: "inherit",
+                                border: "none",
+                                cursor: "pointer"
+                            }
+                        },
+                        `${labelPrefix}${typeof item.label === "string" ? item.label : ""}`,
+                        typeof item.label === "string" || item.label == null ? null : item.label
+                    )
+                );
+            }
+
+            return renderEntries;
+        };
+
+        const buildFallbackMenu = (items: BdMenuItem[]) =>
+            (props: { onClose?: () => void; } = {}) =>
+                React.createElement(
+                    "div",
+                    { style: { minWidth: 180, padding: 4 } },
+                    ...renderFallbackMenuItems(items, props.onClose)
+                );
+
+        const getContextMenuModule = () => {
+            const contextMenu = webpackApi.getModule((module: unknown) =>
+                !!module &&
+                typeof module === "object" &&
+                typeof (module as Record<string, unknown>).buildMenu === "function" &&
+                typeof (module as Record<string, unknown>).buildMenuChildren === "function",
+            { searchExports: true });
+            return contextMenu && typeof contextMenu === "object"
+                ? contextMenu as Record<string, unknown>
+                : null;
+        };
+
+        const contextMenuApi = {
+            buildMenu: (items: unknown) => {
+                const normalizedItems = Array.isArray(items) ? items as BdMenuItem[] : [];
+                const contextMenuModule = getContextMenuModule();
+                const buildMenu = contextMenuModule?.buildMenu;
+
+                if (typeof buildMenu === "function") {
+                    return buildMenu.call(contextMenuModule, normalizedItems);
+                }
+
+                return buildFallbackMenu(normalizedItems);
+            },
+            buildMenuChildren: (items: unknown) => {
+                const normalizedItems = Array.isArray(items) ? items as BdMenuItem[] : [];
+                const contextMenuModule = getContextMenuModule();
+                const buildMenuChildren = contextMenuModule?.buildMenuChildren;
+
+                if (typeof buildMenuChildren === "function") {
+                    return buildMenuChildren.call(contextMenuModule, normalizedItems);
+                }
+
+                return renderFallbackMenuItems(normalizedItems);
+            },
+            open: (event: unknown, menu: unknown) => {
+                const contextMenuModule = getContextMenuModule();
+                const open = contextMenuModule?.open;
+
+                if (typeof open === "function") {
+                    return open.call(contextMenuModule, event, menu);
+                }
+
+                if (typeof menu !== "function") return;
+                ContextMenuApi.openContextMenu(event as never, menu as never);
+            }
+        };
+
+        const renderChangelogBody = (options?: BdChangelogModalOptions) => {
+            if (!options) return null;
+
+            const sections: React.ReactNode[] = [];
+
+            if (options.subtitle) {
+                sections.push(
+                    React.createElement("div", { key: "subtitle", style: { opacity: 0.8, marginBottom: 4 } }, options.subtitle)
+                );
+            }
+
+            if (options.blurb) {
+                sections.push(React.createElement("div", { key: "blurb", style: { marginBottom: 8 } }, options.blurb));
+            }
+
+            if (Array.isArray(options.changes)) {
+                options.changes.forEach((change, index) => {
+                    const title = change?.title ?? change?.type ?? `Change ${index + 1}`;
+                    const items = Array.isArray(change?.items) ? change.items : [];
+
+                    sections.push(
+                        React.createElement(
+                            "div",
+                            { key: `change-${index}`, style: { marginBottom: 8 } },
+                            React.createElement("strong", null, title),
+                            items.length
+                                ? React.createElement(
+                                    "ul",
+                                    { style: { marginTop: 4, marginBottom: 0, paddingLeft: 18 } },
+                                    ...items.map((item, itemIndex) =>
+                                        React.createElement("li", { key: `change-${index}-item-${itemIndex}` }, String(item))
+                                    )
+                                )
+                                : null
+                        )
+                    );
+                });
+            }
+
+            return React.createElement("div", null, ...sections);
+        };
+
+        const toReactNodeArray = (value: unknown): React.ReactNode[] => {
+            if (value === null || value === undefined) return [];
+            return Array.isArray(value)
+                ? value as React.ReactNode[]
+                : [value as React.ReactNode];
+        };
+
+        const buildSettingsPanel = (options?: { settings?: unknown[]; onChange?: (...args: unknown[]) => void; }) => {
+            const settings = Array.isArray(options?.settings) ? options.settings : [];
+
+            return React.createElement(
+                "div",
+                { className: "bd-compat-settings-panel" },
+                ...settings.map((setting, index) => {
+                    const descriptor = setting && typeof setting === "object"
+                        ? setting as Record<string, unknown>
+                        : {};
+                    const key = typeof descriptor.id === "string" ? descriptor.id : `setting-${index}`;
+                    const children = toReactNodeArray(descriptor.children);
+
+                    return React.createElement(
+                        "div",
+                        {
+                            key,
+                            className: "bd-setting-item",
+                            style: { marginBottom: 12 }
+                        },
+                        React.createElement(
+                            "div",
+                            { className: "bd-setting-header", style: { fontWeight: 600 } },
+                            descriptor.name as React.ReactNode
+                        ),
+                        descriptor.note == null
+                            ? null
+                            : React.createElement(
+                                "div",
+                                { className: "bd-setting-note", style: { opacity: 0.8, marginTop: 4, marginBottom: 6 } },
+                                descriptor.note as React.ReactNode
+                            ),
+                        ...children
+                    );
+                })
+            );
+        };
+
+        const resolveInviteCode = (invite: unknown) => {
+            if (typeof invite === "string" && invite.length) return invite;
+            if (!invite || typeof invite !== "object") return null;
+
+            const inviteRecord = invite as Record<string, unknown>;
+            const inviteCode = inviteRecord.code ?? inviteRecord.invite ?? inviteRecord.inviteCode;
+            return typeof inviteCode === "string" && inviteCode.length
+                ? inviteCode
+                : null;
+        };
+
+        const pluginsApi = {
+            folder: "",
+            isEnabled: (name: string) => {
+                const targetName = String(name);
+                const settingsPlugins = (globalThis as {
+                    Vencord?: { Settings?: { plugins?: Record<string, { enabled?: boolean; }>; }; };
+                }).Vencord?.Settings?.plugins;
+
+                const maybeEnabled = settingsPlugins?.[targetName]?.enabled;
+                return maybeEnabled ?? true;
+            }
+        };
 
         const sharedApi = {
             Webpack: webpackApi,
             React,
+            Components: {
+                TextInput: WebpackCommon.TextInput,
+                Tooltip: WebpackCommon.Tooltip
+            },
             Hooks: { useStateFromStores },
             Utils: { findInTree },
+            Data: dataApi,
+            Commands: commandApi,
+            ContextMenu: contextMenuApi,
             Patcher: {
                 after: (...args: unknown[]) => patcher.after(...args),
                 before: (...args: unknown[]) => patcher.before(...args),
@@ -812,7 +1730,14 @@ class BdRuntime {
             },
             DOM: {
                 addStyle: (id: string, css: string) => styles.addStyle(id, css),
-                removeStyle: (id: string) => styles.removeStyle(id)
+                removeStyle: (id: string) => styles.removeStyle(id),
+                parseHTML: (html: string) => {
+                    if (typeof document === "undefined") return null;
+
+                    const template = document.createElement("template");
+                    template.innerHTML = String(html).trim();
+                    return template.content.firstElementChild ?? template.content.firstChild;
+                }
             },
             Net: {
                 fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -845,7 +1770,7 @@ class BdRuntime {
                 }
             },
             UI: {
-                showToast: (message: string, options?: { type?: string; timeout?: number; }) => showToast(message, toToastType(options?.type), options?.timeout ? { duration: options.timeout } : undefined),
+                showToast: (message: string, options?: { type?: string; timeout?: number; }) => showToast(String(message), toToastType(options?.type), options?.timeout ? { duration: options.timeout } : undefined),
                 showConfirmationModal: (title: string, content: React.ReactNode, options?: {
                     confirmText?: string;
                     cancelText?: string;
@@ -863,9 +1788,46 @@ class BdRuntime {
                     title,
                     body: content,
                     confirmText: "OK"
+                }),
+                buildSettingsPanel,
+                showNotice: (content: unknown, options?: BdNoticeOptions) => {
+                    const message = toNoticeText(content);
+                    showToast(message || "Notice", toToastType(options?.type), options?.timeout ? { duration: options.timeout } : undefined);
+                    return () => void 0;
+                },
+                showInviteModal: (invite: unknown) => {
+                    const inviteCode = resolveInviteCode(invite);
+                    if (!inviteCode) {
+                        logger.warn("BdApi.UI.showInviteModal called without an invite code.");
+                        return;
+                    }
+
+                    const inviteModule = webpackApi.getByKeys("openInviteModal");
+                    if (inviteModule && typeof inviteModule.openInviteModal === "function") {
+                        try {
+                            inviteModule.openInviteModal(inviteCode);
+                            return;
+                        } catch {
+                            try {
+                                inviteModule.openInviteModal({ inviteCode, code: inviteCode });
+                                return;
+                            } catch (error) {
+                                logger.error("Failed to open Discord invite modal.", error);
+                            }
+                        }
+                    }
+
+                    if (typeof window !== "undefined" && typeof window.open === "function") {
+                        window.open(`https://discord.gg/${inviteCode}`, "_blank", "noopener,noreferrer");
+                    }
+                },
+                showChangelogModal: (options?: BdChangelogModalOptions) => Alerts.show({
+                    title: options?.title ?? pluginName,
+                    body: renderChangelogBody(options),
+                    confirmText: "OK"
                 })
             },
-            Plugins: { folder: "" },
+            Plugins: pluginsApi,
             Logger: {
                 log: (...args: unknown[]) => logger.log(...args),
                 warn: (...args: unknown[]) => logger.warn(...args),
@@ -886,8 +1848,16 @@ class BdRuntime {
     dispose() {
         for (const patcher of this.patchers) patcher.unpatchAll();
         for (const styleManager of this.styles) styleManager.clear();
+        for (const cleanup of this.cleanups) {
+            try {
+                cleanup();
+            } catch (error) {
+                this.logger.error("Failed to execute BdApi runtime cleanup.", error);
+            }
+        }
         this.patchers.clear();
         this.styles.clear();
+        this.cleanups.clear();
         this.apiInstances.clear();
     }
 }
@@ -899,15 +1869,111 @@ function loadLegacyPlugin(source: string, bdApi: unknown, pluginName: string, lo
     const windowScope = typeof window === "undefined" ? globalScope : window;
     const requireShim = createLegacyRequireShim(pluginName, logger);
     const pluginFactory = getLegacyPluginFactory(source);
-    pluginFactory(module, module.exports, bdApi, windowScope, globalScope, globalScope, localStorage, requireShim);
+    const restoreLegacyBdApi = bindLegacyBdApi(bdApi, getLegacyGlobalScopes(windowScope, globalScope));
+
+    try {
+        pluginFactory(module, module.exports, bdApi, windowScope, globalScope, globalScope, localStorage, requireShim);
+    } finally {
+        restoreLegacyBdApi();
+    }
+
     const exported = module.exports as { default?: unknown; };
     return exported.default ?? exported;
 }
 
-export function createBdPluginBridge(pluginName: string, source: string) {
+interface LegacyBdPluginInstance {
+    start?: () => void;
+    stop?: () => void;
+    getSettingsPanel?: () => unknown;
+}
+
+export interface BdPluginBridge {
+    start: () => void;
+    stop: () => void;
+    settingsAboutComponent: React.ComponentType;
+}
+
+export function createBdPluginBridge(pluginName: string, source: string): BdPluginBridge {
     const logger = new Logger(pluginName);
     let runtime: BdRuntime | null = null;
-    let legacyInstance: { start?: () => void; stop?: () => void; } | null = null;
+    let legacyInstance: LegacyBdPluginInstance | null = null;
+
+    const LegacySettingsDomHost = ({ panel }: { panel: Node; }) => {
+        const containerRef = React.useRef<HTMLDivElement | null>(null);
+
+        React.useEffect(() => {
+            const container = containerRef.current;
+            if (!container) return;
+
+            container.replaceChildren(panel);
+            return () => {
+                if (panel.parentNode === container) {
+                    container.removeChild(panel);
+                }
+            };
+        }, [panel]);
+
+        return React.createElement("div", { ref: containerRef });
+    };
+
+    const getLegacySettingsPanel = () => {
+        const panelGetter = legacyInstance?.getSettingsPanel;
+        if (typeof panelGetter !== "function") return null;
+
+        try {
+            const panel = panelGetter.call(legacyInstance);
+            return typeof panel === "function"
+                ? (panel as () => unknown)()
+                : panel;
+        } catch (error) {
+            logger.error("Failed to render legacy BetterDiscord settings panel.", error);
+            return null;
+        }
+    };
+
+    const renderLegacySettingsPanel = (panel: unknown): React.ReactNode => {
+        if (panel == null || panel === false) return null;
+        if (React.isValidElement(panel)) return panel;
+
+        if (typeof panel === "string") {
+            if (!panel.length) return null;
+
+            return React.createElement("div", {
+                dangerouslySetInnerHTML: { __html: panel }
+            });
+        }
+
+        if (typeof Node !== "undefined" && panel instanceof Node) {
+            return React.createElement(LegacySettingsDomHost, { panel });
+        }
+
+        if (typeof panel === "number" || typeof panel === "boolean") {
+            return React.createElement("span", null, String(panel));
+        }
+
+        return null;
+    };
+
+    const LegacySettingsAboutComponent = () => {
+        if (!legacyInstance) {
+            return React.createElement(
+                "div",
+                { style: { opacity: 0.8 } },
+                "Enable this plugin to access its legacy settings panel."
+            );
+        }
+
+        const renderedPanel = renderLegacySettingsPanel(getLegacySettingsPanel());
+        if (renderedPanel != null) {
+            return renderedPanel;
+        }
+
+        return React.createElement(
+            "div",
+            { style: { opacity: 0.8 } },
+            "This legacy plugin does not expose a settings panel."
+        );
+    };
 
     const stop = () => {
         try {
@@ -942,7 +2008,7 @@ export function createBdPluginBridge(pluginName: string, source: string) {
         }
 
         try {
-            legacyInstance = new (LegacyPluginCtor as new (...args: unknown[]) => { start?: () => void; stop?: () => void; })({ name: pluginName });
+            legacyInstance = new (LegacyPluginCtor as new (...args: unknown[]) => LegacyBdPluginInstance)({ name: pluginName });
             legacyInstance.start?.();
         } catch (error) {
             logger.error("Failed to start legacy BetterDiscord plugin.", error);
@@ -950,5 +2016,9 @@ export function createBdPluginBridge(pluginName: string, source: string) {
         }
     };
 
-    return { start, stop };
+    return {
+        start,
+        stop,
+        settingsAboutComponent: LegacySettingsAboutComponent
+    };
 }

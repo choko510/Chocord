@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { EquicordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import legacyPluginSource from "file://./LaTeX.plugin.js?trim=false";
+import legacyPluginSource from "file://./EnhanceCodeBlocks.plugin.js?trim=false";
 
 import { createBdPluginBridge } from "../_api/bdCompat";
 
-const bridge = createBdPluginBridge("LaTeXRenderer", legacyPluginSource);
+const bridge = createBdPluginBridge("EnhanceCodeBlocks", legacyPluginSource);
 
 export default definePlugin({
-    name: "LaTeXRenderer",
-    description: "Renders LaTeX equations using MathJax.",
-    authors: [EquicordDevs.BinaryQuantumSoul],
+    name: "EnhanceCodeBlocks",
+    description: "Enhances Discord code blocks and text file attachment previews.",
+    authors: [{
+        name: "Doggybootsy",
+        id: 0n
+    }],
     settingsAboutComponent: bridge.settingsAboutComponent,
     start() {
         bridge.start();

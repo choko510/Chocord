@@ -16,6 +16,7 @@ export default definePlugin({
     name: "BetterMentions",
     description: "Adds profile pictures to mentions and enables click-to-profile on text editor mentions.",
     authors: [EquicordDevs.DaddyBoard],
+    settingsAboutComponent: bridge.settingsAboutComponent,
     start() {
         bridge.start();
     },

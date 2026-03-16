@@ -21,23 +21,91 @@ import { Readable } from "stream";
 import { finished } from "stream/promises";
 
 type Url = string | URL;
+type FetchOptions = RequestInit & {
+    timeoutMs?: number;
+};
 
-export async function checkedFetch(url: Url, options?: RequestInit) {
+function prepareRequest(options?: FetchOptions): {
+    request: RequestInit | undefined;
+    timeoutMs?: number;
+    cleanup: () => void;
+} {
+    if (!options) {
+        return {
+            request: undefined,
+            cleanup: () => { }
+        };
+    }
+
+    const { timeoutMs, signal, ...request } = options;
+
+    if (timeoutMs == null && !signal) {
+        return {
+            request,
+            timeoutMs,
+            cleanup: () => { }
+        };
+    }
+
+    const controller = new AbortController();
+    let timeout: NodeJS.Timeout | undefined;
+    let abortListener: (() => void) | undefined;
+
+    if (signal) {
+        if (signal.aborted) {
+            controller.abort(signal.reason);
+        } else {
+            abortListener = () => controller.abort(signal.reason);
+            signal.addEventListener("abort", abortListener, { once: true });
+        }
+    }
+
+    if (timeoutMs != null) {
+        timeout = setTimeout(() => {
+            controller.abort(new Error(`Request timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+    }
+
+    return {
+        request: {
+            ...request,
+            signal: controller.signal
+        },
+        timeoutMs,
+        cleanup: () => {
+            if (timeout) clearTimeout(timeout);
+            if (signal && abortListener) {
+                signal.removeEventListener("abort", abortListener);
+            }
+        }
+    };
+}
+
+export async function checkedFetch(url: Url, options?: FetchOptions) {
+    const method = options?.method ?? "GET";
+    const { request, timeoutMs, cleanup } = prepareRequest(options);
+
     try {
-        var res = await fetch(url, options);
+        var res = await fetch(url, request);
     } catch (err) {
+        if (err instanceof Error && err.name === "AbortError" && timeoutMs != null) {
+            throw new Error(`${method} ${url} failed: Request timed out after ${timeoutMs}ms`);
+        }
+
         if (err instanceof Error && err.cause) {
             err = err.cause;
         }
 
-        throw new Error(`${options?.method ?? "GET"} ${url} failed: ${err}`);
+        throw new Error(`${method} ${url} failed: ${err}`);
+    } finally {
+        cleanup();
     }
 
     if (res.ok) {
         return res;
     }
 
-    let message = `${options?.method ?? "GET"} ${url}: ${res.status} ${res.statusText}`;
+    let message = `${method} ${url}: ${res.status} ${res.statusText}`;
     try {
         const reason = await res.text();
         message += `\n${reason}`;
@@ -46,19 +114,19 @@ export async function checkedFetch(url: Url, options?: RequestInit) {
     throw new Error(message);
 }
 
-export async function fetchJson<T = any>(url: Url, options?: RequestInit) {
+export async function fetchJson<T = any>(url: Url, options?: FetchOptions) {
     const res = await checkedFetch(url, options);
     return res.json() as Promise<T>;
 }
 
-export async function fetchBuffer(url: Url, options?: RequestInit) {
+export async function fetchBuffer(url: Url, options?: FetchOptions) {
     const res = await checkedFetch(url, options);
     const buf = await res.arrayBuffer();
 
     return Buffer.from(buf);
 }
 
-export async function downloadToFile(url: Url, path: string, options?: RequestInit) {
+export async function downloadToFile(url: Url, path: string, options?: FetchOptions) {
     const res = await checkedFetch(url, options);
     if (!res.body) {
         throw new Error(`Download ${url}: response body is empty`);

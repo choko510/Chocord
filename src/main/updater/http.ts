@@ -28,6 +28,8 @@ import gitRemote from "~git-remote";
 import { ASAR_FILE, serializeErrors } from "./common";
 
 const API_BASE = `https://api.github.com/repos/${gitRemote}`;
+const API_REQUEST_TIMEOUT_MS = 20_000;
+const UPDATE_DOWNLOAD_TIMEOUT_MS = 5 * 60_000;
 let PendingUpdate: string | null = null;
 
 async function githubGet<T = any>(endpoint: string) {
@@ -37,7 +39,8 @@ async function githubGet<T = any>(endpoint: string) {
             // "All API requests MUST include a valid User-Agent header.
             // Requests with no User-Agent header will be rejected."
             "User-Agent": VENCORD_USER_AGENT
-        }
+        },
+        timeoutMs: API_REQUEST_TIMEOUT_MS
     });
 }
 
@@ -55,6 +58,8 @@ async function calculateGitChanges() {
 }
 
 async function fetchUpdates() {
+    PendingUpdate = null;
+
     const data = await githubGet("/releases/latest");
 
     const hash = data.name.slice(data.name.lastIndexOf(" ") + 1);
@@ -62,6 +67,10 @@ async function fetchUpdates() {
         return false;
 
     const asset = data.assets.find(a => a.name === ASAR_FILE);
+    if (!asset?.browser_download_url) {
+        throw new Error(`Latest release does not contain required asset: ${ASAR_FILE}`);
+    }
+
     PendingUpdate = asset.browser_download_url;
 
     return true;
@@ -70,7 +79,9 @@ async function fetchUpdates() {
 async function applyUpdates() {
     if (!PendingUpdate) return true;
 
-    const data = await fetchBuffer(PendingUpdate);
+    const data = await fetchBuffer(PendingUpdate, {
+        timeoutMs: UPDATE_DOWNLOAD_TIMEOUT_MS
+    });
     writeFileSync(__dirname, data, { flush: true });
 
     PendingUpdate = null;
