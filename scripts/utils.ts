@@ -201,10 +201,26 @@ export async function parseFile(fileName: string) {
                 case "authors":
                     if (!isArrayLiteralExpression(value)) throw fail("authors is not an array literal");
                     data.authors = value.elements.map(e => {
-                        if (!isPropertyAccessExpression(e)) throw fail("authors array contains non-property access expressions");
-                        const d = devs[getName(e)!] || equicordDevs[getName(e)!];
-                        if (!d) throw fail(`couldn't look up author ${getName(e)}`);
-                        return d;
+                        if (isPropertyAccessExpression(e)) {
+                            const d = devs[getName(e)!] || equicordDevs[getName(e)!];
+                            if (!d) throw fail(`couldn't look up author ${getName(e)}`);
+                            return d;
+                        }
+
+                        if (isObjectLiteralExpression(e)) {
+                            const name = getObjectProp(e, "name");
+                            const id = getObjectProp(e, "id");
+
+                            if (!name || !isStringLiteral(name)) throw fail("author object literal is missing string literal name");
+                            if (!id || id.kind !== SyntaxKind.BigIntLiteral) throw fail("author object literal is missing bigint literal id");
+
+                            return {
+                                name: name.text,
+                                id: (id as BigIntLiteral).text.slice(0, -1)
+                            };
+                        }
+
+                        throw fail("authors array contains invalid author expressions");
                     });
                     break;
                 case "tags":
