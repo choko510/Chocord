@@ -19,62 +19,13 @@ import { React, showToast, Toasts } from "@webpack/common";
 import { PluginMeta } from "~plugins";
 
 import { openPluginModal } from "./PluginModal";
+import { getCachedPluginTranslation, translatePluginText } from "./pluginTranslation";
 
 const logger = new Logger("PluginCard");
 const cl = classNameFactory("vc-plugins-");
-const DESCRIPTION_TRANSLATE_API_KEY = "AIzaSyDLEeFI5OtFBwYBIoK_jj5m32rZK5CkCXA";
-const translatedDescriptionCache = new Map<string, string>();
-const inflightDescriptionTranslations = new Map<string, Promise<string>>();
 const showTranslateErrorToast = onlyOnce(
     () => showToast(translateSettingsText("Failed to translate some plugin descriptions."), Toasts.Type.FAILURE)
 );
-
-interface GoogleTranslationData {
-    translation: string;
-}
-
-function getDescriptionTranslationCacheKey(description: string, targetLanguage: string) {
-    return `${targetLanguage}:${description}`;
-}
-
-async function translateDescription(description: string, targetLanguage: string) {
-    const cacheKey = getDescriptionTranslationCacheKey(description, targetLanguage);
-    const cachedValue = translatedDescriptionCache.get(cacheKey);
-    if (cachedValue) return cachedValue;
-
-    const inflightTranslation = inflightDescriptionTranslations.get(cacheKey);
-    if (inflightTranslation) return inflightTranslation;
-
-    const translationPromise = (async () => {
-        const url = "https://translate-pa.googleapis.com/v1/translate?" + new URLSearchParams({
-            "params.client": "gtx",
-            "dataTypes": "TRANSLATION",
-            "key": DESCRIPTION_TRANSLATE_API_KEY,
-            "query.sourceLanguage": "auto",
-            "query.targetLanguage": targetLanguage,
-            "query.text": description,
-        });
-
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(
-                `Failed to translate plugin description (${targetLanguage})`
-                + `\n${response.status} ${response.statusText}`
-            );
-        }
-
-        const { translation }: GoogleTranslationData = await response.json();
-        translatedDescriptionCache.set(cacheKey, translation);
-        return translation;
-    })();
-
-    inflightDescriptionTranslations.set(cacheKey, translationPromise);
-    try {
-        return await translationPromise;
-    } finally {
-        inflightDescriptionTranslations.delete(cacheKey);
-    }
-}
 
 interface PluginCardProps extends React.HTMLProps<HTMLDivElement> {
     plugin: Plugin;
@@ -105,9 +56,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             return;
         }
 
-        const cachedTranslation = translatedDescriptionCache.get(
-            getDescriptionTranslationCacheKey(plugin.description, descriptionLanguage)
-        );
+        const cachedTranslation = getCachedPluginTranslation(plugin.description, descriptionLanguage);
 
         if (cachedTranslation) {
             setTranslatedDescription(cachedTranslation);
@@ -116,7 +65,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
 
         let isMounted = true;
         setTranslatedDescription(plugin.description);
-        void translateDescription(plugin.description, descriptionLanguage)
+        void translatePluginText(plugin.description, descriptionLanguage)
             .then(translated => {
                 if (!isMounted) return;
                 setTranslatedDescription(translated);
@@ -243,7 +192,7 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
             infoButton={
                 <button
                     role="switch"
-                    onClick={() => openPluginModal(plugin, onRestartNeeded, translatedDescription)}
+                    onClick={() => openPluginModal(plugin, onRestartNeeded, translatedDescription, descriptionLanguage)}
                     className={cl("info-button")}
                 >
                     {plugin.settings?.def && Object.values(plugin.settings.def).some(s => s.type !== OptionType.CUSTOM && !s.hidden)

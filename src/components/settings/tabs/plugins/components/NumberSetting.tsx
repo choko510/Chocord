@@ -23,7 +23,7 @@ import { resolveError, SettingProps, SettingsSection } from "./Common";
 
 const MAX_SAFE_NUMBER = BigInt(Number.MAX_SAFE_INTEGER);
 
-export function NumberSetting({ option, pluginSettings, definedSettings, id, onChange }: SettingProps<PluginOptionNumber>) {
+export function NumberSetting({ option, pluginSettings, definedSettings, id, label, onChange }: SettingProps<PluginOptionNumber>) {
     function serialize(value: any) {
         if (option.type === OptionType.BIGINT) return BigInt(value);
         return Number(value);
@@ -49,7 +49,7 @@ export function NumberSetting({ option, pluginSettings, definedSettings, id, onC
     }
 
     return (
-        <SettingsSection name={id} description={option.description} error={error}>
+        <SettingsSection name={id} title={label} description={option.description} error={error}>
             <TextInput
                 type="number"
                 pattern="-?[0-9]+"

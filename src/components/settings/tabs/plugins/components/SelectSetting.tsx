@@ -21,7 +21,7 @@ import { React, Select, useState } from "@webpack/common";
 
 import { resolveError, SettingProps, SettingsSection } from "./Common";
 
-export function SelectSetting({ option, pluginSettings, definedSettings, onChange, id }: SettingProps<PluginOptionSelect>) {
+export function SelectSetting({ option, pluginSettings, definedSettings, onChange, id, label }: SettingProps<PluginOptionSelect>) {
     const def = pluginSettings[id] ?? option.options?.find(o => o.default)?.value;
 
     const [state, setState] = useState<any>(def ?? null);
@@ -39,7 +39,7 @@ export function SelectSetting({ option, pluginSettings, definedSettings, onChang
     }
 
     return (
-        <SettingsSection name={id} description={option.description} error={error}>
+        <SettingsSection name={id} title={label} description={option.description} error={error}>
             <Select
                 placeholder={option.placeholder ?? "Select an option"}
                 options={option.options}

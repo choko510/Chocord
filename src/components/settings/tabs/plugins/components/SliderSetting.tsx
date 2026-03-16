@@ -21,7 +21,7 @@ import { React, Slider, useState } from "@webpack/common";
 
 import { resolveError, SettingProps, SettingsSection } from "./Common";
 
-export function SliderSetting({ option, pluginSettings, definedSettings, id, onChange }: SettingProps<PluginOptionSlider>) {
+export function SliderSetting({ option, pluginSettings, definedSettings, id, label, onChange }: SettingProps<PluginOptionSlider>) {
     const def = pluginSettings[id] ?? option.default;
 
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export function SliderSetting({ option, pluginSettings, definedSettings, id, onC
     }
 
     return (
-        <SettingsSection name={id} description={option.description} error={error}>
+        <SettingsSection name={id} title={label} description={option.description} error={error}>
             <Slider
                 markers={option.markers}
                 minValue={option.markers[0]}

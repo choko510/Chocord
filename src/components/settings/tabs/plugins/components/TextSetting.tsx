@@ -21,7 +21,7 @@ import { React, TextArea, TextInput, useState } from "@webpack/common";
 
 import { resolveError, SettingProps, SettingsSection } from "./Common";
 
-export function TextSetting({ option, pluginSettings, definedSettings, id, onChange }: SettingProps<PluginOptionString>) {
+export function TextSetting({ option, pluginSettings, definedSettings, id, label, onChange }: SettingProps<PluginOptionString>) {
     const [state, setState] = useState(pluginSettings[id] ?? option.default ?? null);
     const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ export function TextSetting({ option, pluginSettings, definedSettings, id, onCha
     }
 
     return (
-        <SettingsSection name={id} description={option.description} error={error}>
+        <SettingsSection name={id} title={label} description={option.description} error={error}>
             {option.multiline
                 ? <TextArea
                     placeholder={option.placeholder ?? "Enter a value"}

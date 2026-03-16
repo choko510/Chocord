@@ -29,11 +29,14 @@ import { debounce } from "@shared/debounce";
 import { gitRemote } from "@shared/vencordUserAgent";
 import { classNameFactory } from "@utils/css";
 import { proxyLazy } from "@utils/lazy";
+import { Logger } from "@utils/Logger";
 import { Margins } from "@utils/margins";
 import { classes, isObjectEmpty } from "@utils/misc";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "@utils/modal";
+import { onlyOnce } from "@utils/onlyOnce";
 import { translateSettingsText, useSettingsI18n } from "@utils/settingsI18n";
-import { OptionType, Plugin } from "@utils/types";
+import { wordsFromCamel, wordsToTitle } from "@utils/text";
+import { OptionType, Plugin, PluginOptionsItem } from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy } from "@webpack";
 import { Clickable, FluxDispatcher, React, Toasts, Tooltip, useEffect, useMemo, UserStore, UserSummaryItem, UserUtils, useState } from "@webpack/common";
@@ -44,8 +47,20 @@ import { PluginMeta } from "~plugins";
 import { OptionComponentMap } from "./components";
 import { openContributorModal } from "./ContributorModal";
 import { GithubButton, WebsiteButton } from "./LinkIconButton";
+import { translatePluginText } from "./pluginTranslation";
 
 const cl = classNameFactory("vc-plugin-modal-");
+const logger = new Logger("PluginModal");
+const showTranslateSettingsErrorToast = onlyOnce(() =>
+    Toasts.show({
+        message: translateSettingsText("Failed to translate some plugin settings."),
+        id: Toasts.genId(),
+        type: Toasts.Type.FAILURE,
+        options: {
+            position: Toasts.Position.TOP
+        }
+    })
+);
 
 const AvatarStyles = findCssClassesLazy("moreUsers", "avatar", "clickableAvatar");
 const CloseButton = findComponentByCodeLazy("CLOSE_BUTTON_LABEL");
@@ -53,10 +68,54 @@ const ConfirmModal = findComponentByCodeLazy('parentComponent:"ConfirmModal"');
 const WarningIcon = findComponentByCodeLazy("3.15H3.29c-1.74");
 const UserRecord: Constructor<Partial<User>> = proxyLazy(() => UserStore.getCurrentUser().constructor) as any;
 
+interface TranslatedPluginOption {
+    displayName: string;
+    option: PluginOptionsItem;
+}
+
 interface PluginModalProps extends ModalProps {
     plugin: Plugin;
     onRestartNeeded(key: string): void;
     descriptionOverride?: string;
+    translationLanguage?: string;
+}
+
+async function translatePluginOption(option: PluginOptionsItem, targetLanguage: string): Promise<PluginOptionsItem> {
+    if (option.type === OptionType.CUSTOM || option.type === OptionType.COMPONENT) return option;
+
+    const [description, placeholder] = await Promise.all([
+        option.description ? translatePluginText(option.description, targetLanguage) : option.description,
+        option.placeholder ? translatePluginText(option.placeholder, targetLanguage) : option.placeholder,
+    ]);
+
+    if (option.type === OptionType.SELECT) {
+        const translatedSelectOptions = await Promise.all(option.options.map(async selectOption => {
+            if (!selectOption.label) return selectOption;
+            const translatedLabel = await translatePluginText(selectOption.label, targetLanguage);
+            return translatedLabel === selectOption.label
+                ? selectOption
+                : { ...selectOption, label: translatedLabel };
+        }));
+
+        const hasOriginalSelectLabels = translatedSelectOptions.every((selectOption, index) => selectOption === option.options[index]);
+        if (description === option.description && placeholder === option.placeholder && hasOriginalSelectLabels)
+            return option;
+
+        return {
+            ...option,
+            description,
+            placeholder,
+            options: translatedSelectOptions
+        };
+    }
+
+    if (description === option.description && placeholder === option.placeholder) return option;
+
+    return {
+        ...option,
+        description,
+        placeholder
+    };
 }
 
 export function makeDummyUser(user: { username: string; id?: string; avatar?: string; }) {
@@ -76,10 +135,11 @@ export function makeDummyUser(user: { username: string; id?: string; avatar?: st
     return newUser;
 }
 
-export default function PluginModal({ plugin, onRestartNeeded, onClose, transitionState, descriptionOverride }: PluginModalProps) {
+export default function PluginModal({ plugin, onRestartNeeded, onClose, transitionState, descriptionOverride, translationLanguage }: PluginModalProps) {
     const t = useSettingsI18n();
     const pluginSettings = useSettings([`plugins.${plugin.name}.*`]).plugins[plugin.name];
     const hasSettings = Boolean(pluginSettings && plugin.options && !isObjectEmpty(plugin.options));
+    const [translatedOptions, setTranslatedOptions] = useState<Record<string, TranslatedPluginOption>>({});
 
     // avoid layout shift by showing dummy users while loading users
     const fallbackAuthors = useMemo(() => [makeDummyUser({ username: t("Loading..."), id: "-1465912127305809920" })], [t]);
@@ -102,6 +162,40 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
         })();
     }, [plugin.authors]);
 
+    useEffect(() => {
+        if (!plugin.options || !translationLanguage) {
+            setTranslatedOptions({});
+            return;
+        }
+
+        setTranslatedOptions({});
+        let isMounted = true;
+        const optionEntries = Object.entries(plugin.options) as [string, PluginOptionsItem][];
+        const visibleOptions = optionEntries.filter(([, setting]) => setting.type !== OptionType.CUSTOM && !setting.hidden);
+
+        void Promise.all(visibleOptions.map(async ([key, setting]) => {
+            const [displayName, option] = await Promise.all([
+                translatePluginText(wordsToTitle(wordsFromCamel(key)), translationLanguage),
+                translatePluginOption(setting, translationLanguage)
+            ]);
+
+            return [key, { displayName, option }] as const;
+        }))
+            .then(entries => {
+                if (!isMounted) return;
+                setTranslatedOptions(Object.fromEntries(entries));
+            })
+            .catch(error => {
+                logger.error(`Error while translating plugin settings for ${plugin.name}:`, error);
+                showTranslateSettingsErrorToast();
+                if (isMounted) setTranslatedOptions({});
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [plugin.name, plugin.options, translationLanguage]);
+
     function handleResetClick() {
         openWarningModal(plugin, onRestartNeeded);
     }
@@ -122,12 +216,15 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                 if (option.restartNeeded) onRestartNeeded(key);
             }
 
-            const Component = OptionComponentMap[setting.type];
+            const translatedOption = translatedOptions[key];
+            const optionForRender = translatedOption?.option ?? setting;
+            const Component = OptionComponentMap[optionForRender.type];
             return (
                 <ErrorBoundary noop key={key}>
                     <Component
                         id={key}
-                        option={setting}
+                        label={translatedOption?.displayName}
+                        option={optionForRender}
                         onChange={debounce(onChange)}
                         pluginSettings={pluginSettings}
                         definedSettings={plugin.settings}
@@ -256,13 +353,19 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
     );
 }
 
-export function openPluginModal(plugin: Plugin, onRestartNeeded?: (pluginName: string, key: string) => void, descriptionOverride?: string) {
+export function openPluginModal(
+    plugin: Plugin,
+    onRestartNeeded?: (pluginName: string, key: string) => void,
+    descriptionOverride?: string,
+    translationLanguage?: string
+) {
     openModal(modalProps => (
         <PluginModal
             {...modalProps}
             plugin={plugin}
             onRestartNeeded={(key: string) => onRestartNeeded?.(plugin.name, key)}
             descriptionOverride={descriptionOverride}
+            translationLanguage={translationLanguage}
         />
     ));
 }

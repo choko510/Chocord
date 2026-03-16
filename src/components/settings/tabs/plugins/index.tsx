@@ -295,7 +295,7 @@ export default function PluginSettings() {
 
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
     const descriptionLanguageOptions = useMemo(() => ([
-        { label: t("Original descriptions"), value: DESCRIPTION_TRANSLATION_DISABLED, default: true },
+        { label: t("Original plugin text"), value: DESCRIPTION_TRANSLATION_DISABLED, default: true },
         ...Object.entries(GoogleLanguages)
             .filter(([code]) => code !== "auto")
             .map(([value, label]) => ({ label, value }))

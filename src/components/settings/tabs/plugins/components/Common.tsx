@@ -21,6 +21,7 @@ interface SettingBaseProps<T> {
         enabled: boolean;
     };
     id: string;
+    label?: string;
     definedSettings?: DefinedSettings;
 }
 
@@ -35,18 +36,21 @@ export function resolveError(isValidResult: boolean | string) {
 
 interface SettingsSectionProps extends PropsWithChildren {
     name: string;
+    title?: string;
     description: string;
     error?: string | null;
     inlineSetting?: boolean;
     tag?: "label" | "div";
 }
 
-export function SettingsSection({ tag: Tag = "div", name, description, error, inlineSetting, children }: SettingsSectionProps) {
+export function SettingsSection({ tag: Tag = "div", name, title, description, error, inlineSetting, children }: SettingsSectionProps) {
+    const sectionTitle = title || wordsToTitle(wordsFromCamel(name));
+
     return (
         <Tag className={cl("section")}>
             <div className={classes(cl("content"), inlineSetting && cl("inline"))}>
                 <div className={cl("label")}>
-                    {name && <BaseText className={cl("title")} size="md" weight="medium">{wordsToTitle(wordsFromCamel(name))}</BaseText>}
+                    {name && <BaseText className={cl("title")} size="md" weight="medium">{sectionTitle}</BaseText>}
                     {description && <BaseText className={cl("description")} size="sm">{description}</BaseText>}
                 </div>
                 {children}
