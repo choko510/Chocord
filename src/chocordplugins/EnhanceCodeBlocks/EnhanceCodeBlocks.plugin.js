@@ -56,11 +56,11 @@ var css_default, init_css = __esm({
   display: flex;\r
 }\r
 .ECBlock {\r
-  background: var(--background-secondary-alt);\r
-  border: 1px solid var(--background-tertiary);\r
+  background: #1e1e1e;\r
+  border: 1px solid #333333;\r
   border-radius: var(--radius-xs);\r
   overflow: hidden;\r
-  color: var(--text-muted);\r
+  color: #d4d4d4;\r
   text-size-adjust: none;\r
   line-height: 1rem;\r
   position: relative;\r
@@ -104,9 +104,9 @@ var css_default, init_css = __esm({
   justify-content: space-between;\r
   padding: 8px;\r
   padding-bottom: 6px;\r
-  border-bottom: 1px solid var(--background-tertiary);\r
+  border-bottom: 1px solid #333333;\r
   align-items: center;\r
-  color: var(--text-normal);\r
+  color: #cccccc;\r
 } \r
 .ECBlock .ECBlock-title {\r
   display: flex;\r
@@ -118,28 +118,29 @@ var css_default, init_css = __esm({
 } \r
 .ECBlock .ECBlock-lang {\r
   cursor: pointer;\r
+  color: #cccccc;\r
 } \r
 .ECBlock .ECBlock-byteSize {\r
   font-size: small;\r
-  color: var(--text-muted);\r
+  color: #858585;\r
 } \r
 .ECBlock .ECBlock-collapse {\r
   cursor: pointer;\r
   display: flex;\r
-  color: var(--interactive-normal);\r
+  color: #858585;\r
 } \r
 .ECBlock .ECBlock-collapse:hover {\r
-  color: var(--interactive-hover);  \r
+  color: #cccccc;  \r
 }\r
 .ECBlock .ECBlock-collapse:active {\r
-  color: var(--interactive-active);  \r
+  color: #ffffff;  \r
 }\r
 .ECBlock .ECBlock-enlarge {\r
   width: 22px;\r
   justify-content: center;\r
 } \r
 .ECBlock-collapsed .ECBlock-header {\r
-  border-bottom: 0 solid var(--background-tertiary);\r
+  border-bottom: 0 solid #333333;\r
 } \r
 .ECBlock .ECBlock-actions {\r
   display: flex;\r
@@ -148,49 +149,216 @@ var css_default, init_css = __esm({
   margin-right: 8px;\r
 } \r
 .ECBlock .ECBlock-actions > .ECBlock-remove:hover {\r
-  color: var(--status-danger);\r
+  color: #f44747;\r
 } \r
 .ECBlock .ECBlock-actions > div {\r
   cursor: pointer;\r
-  color: var(--interactive-normal);\r
+  color: #858585;\r
   display: flex;\r
   align-items: center;\r
 } \r
 .ECBlock.ECBlock-loading .ECBlock-actions > div {\r
-  color: var(--interactive-muted);\r
+  color: #5a5a5a;\r
   cursor: not-allowed;\r
 } \r
 .ECBlock .ECBlock-actions > div:hover {\r
-  color: var(--interactive-hover);  \r
+  color: #cccccc;  \r
 }\r
 .ECBlock .ECBlock-actions > div:active,\r
 .ECBlock .ECBlock-actions .ECBlock-active {\r
-  color: var(--interactive-active);  \r
+  color: #ffffff;  \r
 }\r
 .ECBlock .ECBlock-actions > div.ECBlock-copied {\r
-  color: var(--status-positive);\r
+  color: #89d185;\r
 }\r
 .ECBlock .ECBlock-wrapper {\r
   overflow: auto scroll;\r
 }\r
 .ECBlock .ECBlock-table {\r
-  font-size: 0.9em;\r
-  font-family: var(--font-code);\r
+  font-size: 0.875em;\r
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace;\r
 }\r
 .ECBlock .ECBlock-table tr > :first-child {\r
   padding: 0 8px;\r
-  border-right: 1px solid var(--background-tertiary);\r
+  border-right: 1px solid #333333;\r
   user-select: none;\r
-  text-align: center;\r
+  text-align: right;\r
   position: sticky;\r
   left: 0;\r
-  background: var(--background-secondary-alt);\r
+  background: #1e1e1e;\r
+  color: #858585;\r
+  min-width: 40px;\r
 }\r
 .ECBlock .ECBlock-table tr > :last-child {\r
   padding: 0 8px;\r
   white-space: pre;\r
   user-select: text;\r
   width: 100%;\r
+}\r
+/* === VSCode Dark+ Syntax Highlighting === */\r
+.ECBlock .hljs {\r
+  color: #d4d4d4;\r
+  background: #1e1e1e;\r
+}\r
+.ECBlock .hljs-keyword {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-built_in {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-type {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-literal {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-number {\r
+  color: #b5cea8;\r
+}\r
+.ECBlock .hljs-operator {\r
+  color: #d4d4d4;\r
+}\r
+.ECBlock .hljs-punctuation {\r
+  color: #d4d4d4;\r
+}\r
+.ECBlock .hljs-property {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-regexp {\r
+  color: #d16969;\r
+}\r
+.ECBlock .hljs-string {\r
+  color: #ce9178;\r
+}\r
+.ECBlock .hljs-char\\.escape {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-subst {\r
+  color: #d4d4d4;\r
+}\r
+.ECBlock .hljs-symbol {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-variable {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-variable\\.language_ {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-variable\\.constant_ {\r
+  color: #4fc1ff;\r
+}\r
+.ECBlock .hljs-title {\r
+  color: #dcdcaa;\r
+}\r
+.ECBlock .hljs-title\\.class_ {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-title\\.class_\\.inherited__ {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-title\\.function_ {\r
+  color: #dcdcaa;\r
+}\r
+.ECBlock .hljs-params {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-comment {\r
+  color: #6a9955;\r
+}\r
+.ECBlock .hljs-doctag {\r
+  color: #608b4e;\r
+}\r
+.ECBlock .hljs-meta {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-meta .hljs-keyword {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-meta .hljs-string {\r
+  color: #ce9178;\r
+}\r
+.ECBlock .hljs-section {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-tag {\r
+  color: #808080;\r
+}\r
+.ECBlock .hljs-name {\r
+  color: #569cd6;\r
+}\r
+.ECBlock .hljs-attr {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-attribute {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-selector-tag {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-selector-id {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-selector-class {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-selector-attr {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-selector-pseudo {\r
+  color: #d7ba7d;\r
+}\r
+.ECBlock .hljs-template-tag {\r
+  color: #d4d4d4;\r
+}\r
+.ECBlock .hljs-template-variable {\r
+  color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-addition {\r
+  background-color: rgba(155, 185, 85, 0.2);\r
+  color: #b5cea8;\r
+}\r
+.ECBlock .hljs-deletion {\r
+  background-color: rgba(255, 0, 0, 0.2);\r
+  color: #ce9178;\r
+}\r
+.ECBlock .hljs-emphasis {\r
+  font-style: italic;\r
+}\r
+.ECBlock .hljs-strong {\r
+  font-weight: bold;\r
+}\r
+.ECBlock .hljs-link {\r
+  color: #569cd6;\r
+  text-decoration: underline;\r
+}\r
+.ECBlock .hljs-formula {\r
+  color: #d4d4d4;\r
+}\r
+.ECBlock .hljs-quote {\r
+  color: #6a9955;\r
+  font-style: italic;\r
+}\r
+.ECBlock .hljs-bullet {\r
+  color: #569cd6;\r
+}\r
+/* === VSCode Dark+ Scrollbar === */\r
+.ECBlock .ECBlock-wrapper::-webkit-scrollbar {\r
+  width: 10px;\r
+  height: 10px;\r
+}\r
+.ECBlock .ECBlock-wrapper::-webkit-scrollbar-track {\r
+  background: #1e1e1e;\r
+}\r
+.ECBlock .ECBlock-wrapper::-webkit-scrollbar-thumb {\r
+  background: rgba(121, 121, 121, 0.4);\r
+  border-radius: 5px;\r
+}\r
+.ECBlock .ECBlock-wrapper::-webkit-scrollbar-thumb:hover {\r
+  background: rgba(100, 100, 100, 0.7);\r
+}\r
+.ECBlock .ECBlock-wrapper::-webkit-scrollbar-corner {\r
+  background: #1e1e1e;\r
 }\r
 .ECBlock-preview {\r
   display: flex;\r
@@ -202,22 +370,22 @@ var css_default, init_css = __esm({
   right: 12px;\r
   top: 12px;\r
   display: flex;\r
-  color: var(--interactive-normal);\r
+  color: #858585;\r
   cursor: pointer;\r
   padding: 4px;\r
   border-radius: var(--radius-xs);\r
 }\r
 .ECBlock-overflow:hover {\r
-  color: var(--interactive-hover);  \r
-  background: var(--background-modifier-hover);\r
+  color: #cccccc;  \r
+  background: rgba(90, 93, 94, 0.31);\r
 }\r
 .ECBlock-overflow:active {\r
-  color: var(--interactive-active);  \r
-  background: var(--background-modifier-active);\r
+  color: #ffffff;  \r
+  background: rgba(90, 93, 94, 0.45);\r
 }\r
 .ECBlock-overflow.ECBlock-selected {\r
-  color: var(--interactive-active);  \r
-  background: var(--background-modifier-selected);\r
+  color: #ffffff;  \r
+  background: rgba(90, 93, 94, 0.45);\r
 }\r
 .ECBlock-zIndex-hook {\r
   z-index: 1;\r
@@ -473,12 +641,16 @@ var import_react6, icons, icon_default, init_icon = __esm({
 
 // src/components/settingsItem.tsx
 function SettingItem({ title, disabled, hideBorder, item, note }) {
-  return BdApi.React.createElement("div", { className: `${classes.container}${disabled ? ` ${classes.disabled}` : ""}` }, BdApi.React.createElement("div", { className: classes.labelRow }, BdApi.React.createElement("label", { className: classes.title }, title), BdApi.React.createElement("div", { className: classes.control }, item)), note && BdApi.React.createElement(Text, { className: `${noteClasses.description} ${noteClasses.modeDefault}${disabled ? ` ${noteClasses.modeDisabled}` : ""}` }, note), !hideBorder && BdApi.React.createElement(Divider, { className: classes.dividerDefault }));
+  return BdApi.React.createElement("div", { className: `${classes.container || ""}${disabled ? ` ${classes.disabled || ""}` : ""}` }, BdApi.React.createElement("div", { className: classes.labelRow || "" }, BdApi.React.createElement("label", { className: classes.title || "" }, title), BdApi.React.createElement("div", { className: classes.control || "" }, item)), note && BdApi.React.createElement(Text, { className: `${noteClasses.description || ""} ${noteClasses.modeDefault || ""}${disabled ? ` ${noteClasses.modeDisabled || ""}` : ""}` }, note), !hideBorder && Divider && BdApi.React.createElement(Divider, { className: classes.dividerDefault || "" }));
 }
 var import_react7, classes, noteClasses, Divider, Text, settingsItem_default, init_settingsItem = __esm({
   "src/components/settingsItem.tsx"() {
     "use strict";
-    import_react7 = __toESM(require_react()), classes = BdApi.Webpack.getModule((m) => m.container && m.dividerDefault), noteClasses = BdApi.Webpack.getModule((m) => m.description && m.modeDefault), Divider = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("),style:", ".divider,"), { searchExports: !0 }), Text = BdApi.Webpack.getModule((m) => m.Colors && m.Sizes);
+    import_react7 = __toESM(require_react()), classes = BdApi.Webpack.getModule((m) => m.container && m.dividerDefault) || {}, noteClasses = BdApi.Webpack.getModule((m) => m.description && m.modeDefault) || {};
+    Divider = BdApi.Webpack.getModule(BdApi.Webpack.Filters.byStrings("),style:", ".divider,"), { searchExports: !0 });
+    if (typeof Divider !== "function") Divider = ({ className }) => BdApi.React.createElement("hr", { className: className || "", style: { border: "none", borderTop: "1px solid var(--background-modifier-accent)", margin: "20px 0" } });
+    Text = BdApi.Webpack.getModule((m) => m.Colors && m.Sizes);
+    if (typeof Text !== "function") Text = ({ children, className }) => BdApi.React.createElement("div", { className: className || "" }, children);
     settingsItem_default = (0, import_react7.memo)(SettingItem);
   }
 });

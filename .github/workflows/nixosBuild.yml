@@ -71,5 +71,5 @@ jobs:
 
             - name: Upload Chocord Stable
               run: |
-                  gh release create ${{ steps.date.outputs.date }} --latest=false
+                  gh release view ${{ steps.date.outputs.date }} || gh release create ${{ steps.date.outputs.date }} --latest=false
                   gh release upload ${{ steps.date.outputs.date }} --clobber dist/release/*
