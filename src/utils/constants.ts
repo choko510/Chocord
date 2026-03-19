@@ -1292,6 +1292,10 @@ export const EquicordDevs = Object.freeze({
         name: "samfundev",
         id: 76052829285916672n,
     },
+    ScattrdBlade: {
+        name: "ScattrdBlade",
+        id: 678007540608532491n,
+    },
 } satisfies Record<string, Dev>);
 
 function createLazyDevMap(devs: Record<string, Dev>): Record<string, Dev> {
