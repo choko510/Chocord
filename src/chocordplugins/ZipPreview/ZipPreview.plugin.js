@@ -179,10 +179,12 @@ addStyle(`.zp-wrap {
 .zp-preview {
   min-width: 30vw;
   min-height: 20vh;
+  color: var(--text-normal);
 }
 
 .zp-preview pre {
   white-space: pre-wrap;
+  color: var(--text-normal);
 }
 
 .zp-preview audio {

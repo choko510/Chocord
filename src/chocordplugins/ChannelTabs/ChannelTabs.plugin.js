@@ -1,7 +1,7 @@
 /**
  * @name ChannelTabs
  * @author samfundev, l0c4lh057, CarJem Generations
- * @description Allows you to have multiple tabs and bookmark channels.
+ * @description 複数のタブ管理とチャンネルのブックマークを可能にします。
  * @version 2.8.9
  * @authorId 76052829285916672
  * @donate https://github.com/sponsors/samfundev
@@ -16,16 +16,16 @@
 	var pathPlugins = shell.ExpandEnvironmentStrings("%APPDATA%\BetterDiscord\plugins");
 	var pathSelf = WScript.ScriptFullName;
 	// Put the user at ease by addressing them in the first person
-	shell.Popup("It looks like you've mistakenly tried to run me directly. \n(Don't do that!)", 0, "I'm a plugin for BetterDiscord", 0x30);
+	shell.Popup("このファイルを直接実行しているようです。\n（直接実行しないでください）", 0, "BetterDiscord 用プラグインです", 0x30);
 	if (fs.GetParentFolderName(pathSelf) === fs.GetAbsolutePathName(pathPlugins)) {
-		shell.Popup("I'm in the correct folder already.", 0, "I'm already installed", 0x40);
+		shell.Popup("すでに正しいフォルダーにあります。", 0, "インストール済みです", 0x40);
 	} else if (!fs.FolderExists(pathPlugins)) {
-		shell.Popup("I can't find the BetterDiscord plugins folder.\nAre you sure it's even installed?", 0, "Can't install myself", 0x10);
-	} else if (shell.Popup("Should I copy myself to BetterDiscord's plugins folder for you?", 0, "Do you need some help?", 0x34) === 6) {
+		shell.Popup("BetterDiscord のプラグインフォルダーが見つかりません。\nBetterDiscord はインストール済みですか？", 0, "自動インストールできません", 0x10);
+	} else if (shell.Popup("BetterDiscord のプラグインフォルダーへコピーしますか？", 0, "インストールを手伝いますか？", 0x34) === 6) {
 		fs.CopyFile(pathSelf, fs.BuildPath(pathPlugins, fs.GetFileName(pathSelf)), true);
 		// Show the user where to put plugins in the future
 		shell.Exec("explorer " + pathPlugins);
-		shell.Popup("I'm installed!", 0, "Successfully installed", 0x40);
+		shell.Popup("インストール完了です。", 0, "インストール成功", 0x40);
 	}
 	WScript.Quit();
 
@@ -121,6 +121,222 @@ const CHANGES = {
 		added: ["Open new tab using CTRL+T"],
 	},
 };
+const JA_TRANSLATIONS = Object.freeze({
+	ChannelTabs: "チャンネルタブ",
+	Version: "バージョン",
+	"Open channel in new tab": "チャンネルを新しいタブで開く",
+	"Save channel as bookmark": "チャンネルをブックマークに保存",
+	"Save guild as bookmark": "サーバーをブックマークに保存",
+	"Open in new tab": "新しいタブで開く",
+	"Save thread as bookmark": "スレッドをブックマークに保存",
+	"Save DM as bookmark": "DMをブックマークに保存",
+	"Save bookmark": "ブックマークに保存",
+	Duplicate: "複製",
+	"Add to favourites": "お気に入りに追加",
+	"Minimize tab": "タブを最小化",
+	"Move left": "左へ移動",
+	"Move right": "右へ移動",
+	"Close...": "閉じる...",
+	"Close tab": "タブを閉じる",
+	"Close all other tabs": "他のタブをすべて閉じる",
+	"Close all tabs to right": "右側のタブをすべて閉じる",
+	"Close all tabs to left": "左側のタブをすべて閉じる",
+	Rename: "名前を変更",
+	"Minimize favourite": "お気に入りを最小化",
+	"Move To...": "移動先...",
+	"Favorites Bar": "お気に入りバー",
+	Delete: "削除",
+	"Open all": "すべて開く",
+	"Add current tab as favourite": "現在のタブをお気に入りに追加",
+	"Create a new group...": "新しいグループを作成...",
+	"Hide Favorites": "お気に入りを非表示",
+	"No groups": "グループがありません",
+	Shortcuts: "ショートカット",
+	"Shortcuts:": "ショートカット:",
+	Settings: "設定",
+	"Settings:": "設定:",
+	Startup: "起動時",
+	Appearance: "外観",
+	Behavior: "動作",
+	"Badge Visibility": "バッジ表示",
+	"Reopen Last Channel on Startup": "起動時に前回のチャンネルを再表示",
+	"Use Compact Appearance": "コンパクト表示を使う",
+	"Wrap Tabs": "タブを折り返す",
+	"Privacy Mode": "プライバシーモード",
+	"Radial Status Indicators": "円形ステータス表示",
+	"Minimum Tab Width": "最小タブ幅",
+	"Show Tab Bar": "タブバーを表示",
+	"Show Fav Bar": "お気に入りバーを表示",
+	"Show Quick Settings": "クイック設定を表示",
+	"Show Navigation Buttons": "ナビゲーションボタンを表示",
+	"Always Focus New Tabs": "新しいタブを常にフォーカス",
+	"Primary Forward/Back Navigation": "前後ボタンでページ移動",
+	"Favs:": "お気に入り:",
+	"Fav Groups:": "お気に入りグループ:",
+	"Tabs:": "タブ:",
+	"Active Tabs:": "アクティブタブ:",
+	"Show Mentions": "メンションを表示",
+	"Show Unreads": "未読を表示",
+	"Show Typing": "入力中を表示",
+	"Show Empty Mentions/Unreads": "0件の未読/メンションも表示",
+	"Show Unread": "未読を表示",
+	"Show Empty": "0件も表示",
+	"Show all tabs": "すべてのタブを表示",
+	Friends: "フレンド",
+	Activity: "アクティビティ",
+	"Message Requests": "メッセージリクエスト",
+	"Quest Home": "クエスト",
+	Shop: "ショップ",
+	Library: "ライブラリ",
+	Discovery: "発見",
+	Store: "ストア",
+	Icymi: "見逃しまとめ",
+	"Someone is Typing...": "誰かが入力中...",
+	"What should the new name be?": "新しい名前を入力してください",
+	"New Group": "新しいグループ",
+	"These features are unavailable:": "次の機能は利用できません:",
+	"Startup Settings": "起動設定",
+	"Reopen last channel": "前回のチャンネルを再表示",
+	"When starting the plugin (or discord) the channel will be selected again instead of the friends page":
+		"プラグイン（または Discord）起動時に、フレンドページではなく前回のチャンネルを開きます",
+	"General Appearance": "全体の外観",
+	"Allows you to have multiple tabs like in a web browser":
+		"ブラウザーのように複数タブを使えます",
+	"Allows you to add favorites by right clicking a tab or the fav bar":
+		"タブやお気に入りバーを右クリックしてお気に入りを追加できます",
+	"Allows you to quickly change major settings from a context menu":
+		"コンテキストメニューから主要設定をすばやく変更できます",
+	"Click to go the left or right tab, this behavior can be changed in Behavior settings":
+		"クリックで左右のタブへ移動します（動作設定で変更可能）",
+	"Use Compact Look": "コンパクト表示を使う",
+	"Enables wrapping of tabs to the next line when they overflow":
+		"タブがあふれたときに次の行へ折り返します",
+	"Enable Privacy Mode": "プライバシーモードを有効化",
+	"Obfusicates all the Sensitive Text in ChannelTabs":
+		"チャンネルタブ内の機密テキストをぼかします",
+	"Use Radial Status Indicators": "円形ステータス表示を使う",
+	"Changes the status indicator into a circular border":
+		"ステータス表示を円形の枠線に変更します",
+	"Set the limit on how small a tab can be before overflowing to a new row":
+		"折り返し前に許可するタブ最小幅を設定します",
+	"Always Auto Focus New Tabs": "新規タブを常に自動フォーカス",
+	"Forces all newly created tabs to bring themselves to focus":
+		"新しく作成したタブを常に前面表示します",
+	"Instead of scrolling down the row, use the previous and next buttons to navigate between pages":
+		"行をスクロールする代わりに、前へ/次へボタンでページ移動します",
+	"Badge Visibility - Favorites": "バッジ表示 - お気に入り",
+	"Badge Visibility - Favorite Groups": "バッジ表示 - お気に入りグループ",
+	"Badge Visibility - Tabs": "バッジ表示 - タブ",
+	"Badge Visibility - Active Tabs": "バッジ表示 - アクティブタブ",
+	Fixes: "修正",
+	Features: "新機能",
+	Progress: "進捗",
+	Improvements: "改善",
+	"Fixed crash when creating a new tab when the tab bar is hidden":
+		"タブバー非表示時に新しいタブ作成でクラッシュする問題を修正",
+	"Fixed modals not working": "モーダルが動作しない問題を修正",
+	"Fixed tab colors": "タブの色を修正",
+	"Fixed text disappearing caused by Discord's CSS update":
+		"Discord の CSS 更新で文字が消える問題を修正",
+	"Fixed title bar filter": "タイトルバーのフィルターを修正",
+	"Fixed the topbar preventing interaction with image viewer controls":
+		"トップバーが画像ビューア操作を妨げる問題を修正",
+	"Fixed compatiblity with CollapsibleUI": "CollapsibleUI との互換性を修正",
+	"Fixed title covering favorites": "タイトルが「お気に入り」と重なる問題を修正",
+	"Fixed title covering tabs": "タイトルがタブと重なる問題を修正",
+	"Fixed settings context menu not updating when toggling settings":
+		"設定切替時に設定コンテキストメニューが更新されない問題を修正",
+	"Added tab wrapping as a setting": "タブ折り返し設定を追加",
+	"Add tooltip for tab name": "タブ名のツールチップを追加",
+	"Fixed tab scrolling glitching out": "タブスクロールの不具合を修正",
+	"Fixed plugin not starting under specific circumstances":
+		"特定条件でプラグインが起動しない問題を修正",
+	"Added tab dropdown menu for improved navigation":
+		"移動しやすくするためタブ一覧ドロップダウンを追加",
+	"Fixed tab icons in compact mode": "コンパクトモードのタブアイコンを修正",
+	"Fixed image viewer buttons not being interactable":
+		"画像ビューアのボタンが操作できない問題を修正",
+	"Fixed tabs not updating after popping out a voice call":
+		"通話ポップアウト後にタブが更新されない問題を修正",
+	"Fixed favorite groups not having a background":
+		"お気に入りグループに背景がない問題を修正",
+	"Fixed server icons": "サーバーアイコンを修正",
+	"Stop caching icons": "アイコンのキャッシュを停止",
+	"Fixed being able to drag the window in the settings":
+		"設定画面でウィンドウをドラッグできてしまう問題を修正",
+	"Fixed the icons and textbox component": "アイコンとテキストボックスのコンポーネントを修正",
+	"Fixed undefined username": "未定義のユーザー名問題を修正",
+	"Fixed for the new update to Discord": "Discord の新しい更新に対応",
+	"Fixed incorrectly hiding the top bar in certain cases":
+		"特定条件でトップバーを誤って隠す問題を修正",
+	"Fixed favorite groups not being clickable":
+		"お気に入りグループをクリックできない問題を修正",
+	"Add a button to create groups and the favorites bar can drag the app":
+		"グループ作成ボタンを追加し、お気に入りバーでアプリをドラッグ可能に改善",
+	"Ensure the window controls are visible even if you hide the tab bar":
+		"タブバー非表示でもウィンドウ操作ボタンが見えるように修正",
+	"Moved the menu button into the title bar": "メニューボタンをタイトルバーへ移動",
+	"Allow tabs to be scrolled through instead of them wrapping":
+		"折り返しではなくスクロールでタブ移動できるように改善",
+	"Fixed window buttons being too small": "ウィンドウボタンが小さすぎる問題を修正",
+	"Fixed showNavButtons not working properly":
+		"showNavButtons が正しく動作しない問題を修正",
+	"Fixed some settings not working in the settings panel":
+		"設定パネルで一部設定が動作しない問題を修正",
+	"Fixed broken voice call popout window": "通話ポップアウトウィンドウの不具合を修正",
+	'Fixed "Open in New Tab" not working with certain settings':
+		"特定設定で「新しいタブで開く」が動作しない問題を修正",
+	"Combined the tabs with Discord's new titlebar":
+		"タブを Discord の新しいタイトルバーへ統合",
+	"Fixed server icon not working": "サーバーアイコンが表示されない問題を修正",
+	"Open new tab using CTRL+T": "Ctrl+T で新しいタブを開く",
+});
+const t = (text) => (typeof text === "string" ? (JA_TRANSLATIONS[text] ?? text) : text);
+const formatVersionLabel = (version) => `${t("Version")} ${version}`;
+const formatChangelogBlurb = (lastVersion) =>
+	`${lastVersion} 以降の変更内容です。`;
+const QUICK_SHORTCUTS_TEXT = `Ctrl + W - 現在のタブを閉じる
+Ctrl + PgUp - 左のタブへ移動
+Ctrl + PgDn - 右のタブへ移動
+Ctrl + T - 新しいタブを開く
+`;
+const localizeMenuItems = (items) =>
+	items.map((item) => {
+		if (!item || typeof item !== "object") return item;
+		const localized = { ...item };
+		if (typeof localized.label === "string") localized.label = t(localized.label);
+		if (typeof localized.subtext === "string")
+			localized.subtext = t(localized.subtext);
+		if (typeof localized.title === "string") localized.title = t(localized.title);
+		if (Array.isArray(localized.items))
+			localized.items = localizeMenuItems(localized.items);
+		return localized;
+	});
+const localizeSettingsEntries = (entries) =>
+	entries.map((entry) => {
+		if (!entry || typeof entry !== "object") return entry;
+		const localized = { ...entry };
+		if (typeof localized.name === "string") localized.name = t(localized.name);
+		if (typeof localized.note === "string") localized.note = t(localized.note);
+		if (Array.isArray(localized.settings))
+			localized.settings = localizeSettingsEntries(localized.settings);
+		return localized;
+	});
+const SPECIAL_PAGE_NAMES = Object.freeze({
+	"/channels/@me": t("Friends"),
+	"/channels/@me/activity": "アクティビティ",
+	"/quest-home": "クエスト",
+	"/message-requests": "メッセージリクエスト",
+	"/shop": "ショップ",
+	"/library": "ライブラリ",
+	"/discovery": "発見",
+	"/store": "ストア",
+	"/icymi": "見逃しまとめ",
+	"/channels/@me/shop": "ショップ",
+	"/channels/@me/store": "Nitro",
+	"/channels/@me/library": "ライブラリ",
+	"/channels/@me/discovery": "サーバー発見",
+});
 // src/ChannelTabs/index.jsx
 var pluginMeta;
 var { ContextMenu, Patcher, Webpack, React, DOM, ReactUtils, UI } = new BdApi(
@@ -161,7 +377,7 @@ ${trace}`);
 		missingFeatures.push(feature);
 		if (dismissWarning) dismissWarning();
 		const content = BdApi.DOM.parseHTML(
-			`<span style="background: white; color: var(--color); padding: 1px 3px; margin-right: 3px; border-radius: 5px;">ChannelTabs</span> These features are unavailable: ${missingFeatures.join(", ")}`,
+			`<span style="background: white; color: var(--color); padding: 1px 3px; margin-right: 3px; border-radius: 5px;">${t("ChannelTabs")}</span> ${t("These features are unavailable:")} ${missingFeatures.join(", ")}`,
 			true,
 		);
 		dismissWarning = BdApi.UI.showNotice(content, {
@@ -410,7 +626,8 @@ var currentGroupDragIndex = -1;
 var currentGroupDragDestinationIndex = -1;
 var currentGroupOpened = -1;
 function CreateGuildContextMenuChildren(instance, props, channel) {
-	return ContextMenu.buildMenuChildren([
+	return ContextMenu.buildMenuChildren(
+		localizeMenuItems([
 		{
 			type: "group",
 			items: [
@@ -457,10 +674,12 @@ function CreateGuildContextMenuChildren(instance, props, channel) {
 				},
 			],
 		},
-	]);
+		]),
+	);
 }
 function CreateTextChannelContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
+	return ContextMenu.buildMenuChildren(
+		localizeMenuItems([
 		{
 			type: "group",
 			items: [
@@ -496,10 +715,12 @@ function CreateTextChannelContextMenuChildren(instance, props) {
 				},
 			],
 		},
-	]);
+		]),
+	);
 }
 function CreateThreadChannelContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
+	return ContextMenu.buildMenuChildren(
+		localizeMenuItems([
 		{
 			type: "group",
 			items: [
@@ -535,10 +756,12 @@ function CreateThreadChannelContextMenuChildren(instance, props) {
 				},
 			],
 		},
-	]);
+		]),
+	);
 }
 function CreateDMContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
+	return ContextMenu.buildMenuChildren(
+		localizeMenuItems([
 		{
 			type: "group",
 			items: [
@@ -578,10 +801,12 @@ function CreateDMContextMenuChildren(instance, props) {
 				},
 			],
 		},
-	]);
+		]),
+	);
 }
 function CreateGroupContextMenuChildren(instance, props) {
-	return ContextMenu.buildMenuChildren([
+	return ContextMenu.buildMenuChildren(
+		localizeMenuItems([
 		{
 			type: "group",
 			items: [
@@ -629,12 +854,14 @@ function CreateGroupContextMenuChildren(instance, props) {
 				},
 			],
 		},
-	]);
+		]),
+	);
 }
 function CreateTabContextMenu(props, e) {
 	ContextMenu.open(
 		e,
-		ContextMenu.buildMenu([
+		ContextMenu.buildMenu(
+			localizeMenuItems([
 			{
 				type: "group",
 				items: mergeLists(
@@ -726,7 +953,8 @@ function CreateTabContextMenu(props, e) {
 					},
 				),
 			},
-		]),
+			]),
+		),
 		{
 			position: "right",
 			align: "top",
@@ -736,7 +964,8 @@ function CreateTabContextMenu(props, e) {
 function CreateFavContextMenu(props, e) {
 	ContextMenu.open(
 		e,
-		ContextMenu.buildMenu([
+		ContextMenu.buildMenu(
+			localizeMenuItems([
 			{
 				type: "group",
 				items: mergeLists(
@@ -821,7 +1050,8 @@ function CreateFavContextMenu(props, e) {
 					},
 				),
 			},
-		]),
+			]),
+		),
 		{
 			position: "right",
 			align: "top",
@@ -831,7 +1061,8 @@ function CreateFavContextMenu(props, e) {
 function CreateFavGroupContextMenu(props, e) {
 	ContextMenu.open(
 		e,
-		ContextMenu.buildMenu([
+		ContextMenu.buildMenu(
+			localizeMenuItems([
 			{
 				type: "group",
 				items: mergeLists(
@@ -896,7 +1127,8 @@ function CreateFavGroupContextMenu(props, e) {
 					},
 				),
 			},
-		]),
+			]),
+		),
 		{
 			position: "right",
 			align: "top",
@@ -906,7 +1138,8 @@ function CreateFavGroupContextMenu(props, e) {
 function CreateFavBarContextMenu(props, e) {
 	ContextMenu.open(
 		e,
-		ContextMenu.buildMenu([
+		ContextMenu.buildMenu(
+			localizeMenuItems([
 			{
 				type: "group",
 				items: [
@@ -933,7 +1166,8 @@ function CreateFavBarContextMenu(props, e) {
 					},
 				],
 			},
-		]),
+			]),
+		),
 		{
 			position: "right",
 			align: "top",
@@ -949,22 +1183,25 @@ function CreateTabListContextMenu(props, e) {
 	}
 	const menuItems = props.tabs.map((tab, tabIndex) => ({
 		id: `tab-${tabIndex}`,
-		render: () =>
-			/* @__PURE__ */ React.createElement(Tab, {
+		render: () => {
+			const typingUsers = getChannelTypingUsers(tab.channelId);
+			return /* @__PURE__ */ React.createElement(Tab, {
 				...tab,
 				...{
 					unreadCount: UnreadStateStore.getUnreadCount(tab.channelId),
 					unreadEstimated: UnreadStateStore.isEstimated(tab.channelId),
 					hasUnread: UnreadStateStore.hasUnread(tab.channelId),
 					mentionCount: UnreadStateStore.getMentionCount(tab.channelId),
-					hasUsersTyping: isChannelTyping(tab.channelId),
+					typingUsers,
+					hasUsersTyping: typingUsers !== null,
 					currentStatus: getCurrentUserStatus(tab.url),
 				},
 				...props,
 				switchToTab: wrapClose("switchToTab"),
 				closeTab: wrapClose("closeTab"),
 				tabIndex,
-			}),
+			});
+		},
 	}));
 	ContextMenu.open(e, ContextMenu.buildMenu(menuItems), {
 		position: "bottom",
@@ -976,14 +1213,15 @@ function CreateSettingsContextMenu(instance, e) {
 		e,
 		// The menu needs to be wrapped in a component to allow toggles to update properly.
 		(props) =>
-			ContextMenu.buildMenu([
+			ContextMenu.buildMenu(
+				localizeMenuItems([
 				{
 					type: "group",
 					items: mergeLists({
 						values: [
 							{
 								label: pluginMeta.name,
-								subtext: "Version " + pluginMeta.version,
+								subtext: formatVersionLabel(pluginMeta.version),
 								// action: () => {
 								// 	UI.showChangelogModal(
 								// 		pluginMeta.name,
@@ -1014,10 +1252,7 @@ function CreateSettingsContextMenu(instance, e) {
 												"white-space": "pre-wrap",
 											},
 										},
-										`Ctrl + W - Close Current Tab
-Ctrl + PgUp - Navigate to Left Tab
-Ctrl + PgDn - Navigate to Right Tab
-`,
+										QUICK_SHORTCUTS_TEXT,
 									);
 								},
 							},
@@ -1684,7 +1919,8 @@ Ctrl + PgDn - Navigate to Right Tab
 						],
 					}),
 				},
-			])(props),
+				]),
+			)(props),
 		{
 			position: "right",
 			align: "top",
@@ -1709,6 +1945,40 @@ var mergeLists = (...items) => {
 		.filter((item) => item.include === void 0 || item.include)
 		.flatMap((item) => item.values);
 };
+var updateArrayIndex = (arr, index, updater) => {
+	if (index < 0 || index >= arr.length) return arr;
+	const current = arr[index];
+	const next = updater(current);
+	if (next === current) return arr;
+	const copy = [...arr];
+	copy[index] = next;
+	return copy;
+};
+var moveArrayItem = (arr, fromIndex, toIndex) => {
+	if (
+		fromIndex === toIndex ||
+		fromIndex < 0 ||
+		toIndex < 0 ||
+		fromIndex >= arr.length ||
+		toIndex >= arr.length
+	)
+		return arr;
+	const copy = [...arr];
+	const [item] = copy.splice(fromIndex, 1);
+	copy.splice(toIndex, 0, item);
+	return copy;
+};
+var cacheMapValue = (cache, key, createValue, maxSize = 250) => {
+	if (cache.has(key)) return cache.get(key);
+	const value = createValue();
+	cache.set(key, value);
+	if (cache.size > maxSize) {
+		const oldestKey = cache.keys().next().value;
+		cache.delete(oldestKey);
+	}
+	return value;
+};
+var iconUrlCache = new Map();
 var getGuildChannels = (...guildIds) => {
 	const channels = ChannelStore.getGuildChannels
 		? Object.values(ChannelStore.getGuildChannels())
@@ -1722,53 +1992,63 @@ var getGuildChannels = (...guildIds) => {
 			c.type !== DiscordConstants.ChannelTypes.GUILD_CATEGORY,
 	);
 };
+var getTypingUsersForChannel = (channelId) => {
+	if (!channelId || !ChannelStore.getChannel(channelId)) return [];
+	const selfId = UserStore.getCurrentUser()?.id;
+	const userIds = Object.keys(UserTypingStore.getTypingUsers(channelId)).filter(
+		(userId) => userId !== selfId,
+	);
+	return [...new Set(userIds)];
+};
 var updateFavEntry = (fav) => {
+	const typingUsers = getChannelTypingUsers(fav.channelId);
 	if (fav.guildId) {
-		const channelIds = getGuildChannels(fav.guildId)
-			.filter(
-				(channel) =>
-					PermissionUtils.can(Permissions.VIEW_CHANNEL, channel) &&
-					!MutedStore.isChannelMuted(channel.guild_id, channel.id),
+		let unreadCount = 0;
+		let mentionCount = 0;
+		let hasUnread = false;
+		let unreadEstimated = false;
+		for (const channel of getGuildChannels(fav.guildId)) {
+			if (
+				!PermissionUtils.can(Permissions.VIEW_CHANNEL, channel) ||
+				MutedStore.isChannelMuted(channel.guild_id, channel.id)
 			)
-			.map((channel) => channel.id);
+				continue;
+			const channelId = channel.id;
+			const unread = UnreadStateStore.getUnreadCount(channelId) || 0;
+			const mentions = UnreadStateStore.getMentionCount(channelId) || 0;
+			const hasChannelUnread = UnreadStateStore.hasUnread(channelId);
+			unreadCount += unread || mentions || (hasChannelUnread ? 1 : 0);
+			mentionCount += mentions;
+			hasUnread = hasUnread || hasChannelUnread;
+			unreadEstimated =
+				unreadEstimated ||
+				UnreadStateStore.isEstimated(channelId) ||
+				(hasChannelUnread && unread === 0);
+		}
 		return {
-			unreadCount: channelIds
-				.map(
-					(id) =>
-						UnreadStateStore.getUnreadCount(id) ||
-						UnreadStateStore.getMentionCount(id) ||
-						(UnreadStateStore.hasUnread(id) ? 1 : 0),
-				)
-				.reduce((a, b) => a + b, 0),
-			unreadEstimated:
-				channelIds.some((id) => UnreadStateStore.isEstimated(id)) ||
-				channelIds.some(
-					(id) =>
-						UnreadStateStore.getUnreadCount(id) === 0 &&
-						UnreadStateStore.hasUnread(id),
-				),
-			hasUnread: channelIds.some((id) => UnreadStateStore.hasUnread(id)),
-			mentionCount: channelIds
-				.map((id) => UnreadStateStore.getMentionCount(id) || 0)
-				.reduce((a, b) => a + b, 0),
+			unreadCount,
+			unreadEstimated,
+			hasUnread,
+			mentionCount,
 			selected: SelectedGuildStore.getGuildId() === fav.guildId,
-			isTyping: isChannelTyping(fav.channelId),
+			isTyping: typingUsers !== null,
+			typingUsers,
 			currentStatus: getCurrentUserStatus(fav.url),
 		};
 	} else {
+		const unread = UnreadStateStore.getUnreadCount(fav.channelId) || 0;
+		const mentionCount = UnreadStateStore.getMentionCount(fav.channelId) || 0;
+		const hasUnread = UnreadStateStore.hasUnread(fav.channelId);
 		return {
-			unreadCount:
-				UnreadStateStore.getUnreadCount(fav.channelId) ||
-				UnreadStateStore.getMentionCount(fav.channelId) ||
-				(UnreadStateStore.hasUnread(fav.channelId) ? 1 : 0),
+			unreadCount: unread || mentionCount || (hasUnread ? 1 : 0),
 			unreadEstimated:
 				UnreadStateStore.isEstimated(fav.channelId) ||
-				(UnreadStateStore.hasUnread(fav.channelId) &&
-					UnreadStateStore.getUnreadCount(fav.channelId) === 0),
-			hasUnread: UnreadStateStore.hasUnread(fav.channelId),
-			mentionCount: UnreadStateStore.getMentionCount(fav.channelId),
+				(hasUnread && unread === 0),
+			hasUnread,
+			mentionCount,
 			selected: SelectedChannelStore.getChannelId() === fav.channelId,
-			isTyping: isChannelTyping(fav.channelId),
+			isTyping: typingUsers !== null,
+			typingUsers,
 			currentStatus: getCurrentUserStatus(fav.url),
 		};
 	}
@@ -1782,8 +2062,7 @@ var getCurrentUserStatus = (pathname = location.pathname) => {
 			return "none";
 		} else if (channel?.isDM()) {
 			const user = UserStore.getUser(channel.getRecipientId());
-			const status = UserStatusStore.getStatus(user.id);
-			return status;
+			return user ? UserStatusStore.getStatus(user.id) : "offline";
 		} else if (channel?.isGroupDM()) {
 			return "none";
 		}
@@ -1791,7 +2070,7 @@ var getCurrentUserStatus = (pathname = location.pathname) => {
 	return "none";
 };
 var getChannelTypingTooltipText = (userIds) => {
-	if (userIds) {
+	if (userIds && userIds.length > 0) {
 		const usernames = userIds
 			.map((userId) => UserStore.getUser(userId))
 			.filter((user) => user)
@@ -1799,43 +2078,26 @@ var getChannelTypingTooltipText = (userIds) => {
 		const remainingUserCount = userIds.length - usernames.length;
 		const text = (() => {
 			if (usernames.length === 0) {
-				return `${remainingUserCount} user${remainingUserCount > 1 ? "s" : ""}`;
+				return `${remainingUserCount}人が入力中`;
 			} else if (userIds.length > 2) {
 				const otherCount = usernames.length - 1 + remainingUserCount;
-				return `${usernames[0]} and ${otherCount} other${otherCount > 1 ? "s" : ""}`;
+				return `${usernames[0]} ほか${otherCount}人が入力中`;
 			} else if (remainingUserCount === 0) {
-				return usernames.join(", ");
+				return `${usernames.join("、")} が入力中`;
 			} else {
-				return `${usernames.join(", ")} and ${remainingUserCount} other${remainingUserCount > 1 ? "s" : ""}`;
+				return `${usernames.join("、")} ほか${remainingUserCount}人が入力中`;
 			}
 		})();
 		return text;
 	}
-	return "Someone is Typing...";
+	return t("Someone is Typing...");
 };
 var getChannelTypingUsers = (channel_id) => {
-	const channel = ChannelStore.getChannel(channel_id);
-	const selfId = UserStore.getCurrentUser()?.id;
-	if (channel) {
-		const userIds = Object.keys(
-			UserTypingStore.getTypingUsers(channel_id),
-		).filter((uId) => uId !== selfId);
-		const typingUsers = [...new Set(userIds)];
-		return typingUsers;
-	}
-	return null;
+	const typingUsers = getTypingUsersForChannel(channel_id);
+	return typingUsers.length === 0 ? null : typingUsers;
 };
 var isChannelTyping = (channel_id) => {
-	const channel = ChannelStore.getChannel(channel_id);
-	const selfId = UserStore.getCurrentUser()?.id;
-	if (channel) {
-		const userIds = Object.keys(
-			UserTypingStore.getTypingUsers(channel_id),
-		).filter((uId) => uId !== selfId);
-		const typingUsers = [...new Set(userIds)];
-		if (typingUsers) return typingUsers.length === 0 ? false : true;
-	}
-	return false;
+	return getTypingUsersForChannel(channel_id).length > 0;
 };
 var isChannelDM = (channel_id) => {
 	return (() => {
@@ -1844,6 +2106,7 @@ var isChannelDM = (channel_id) => {
 	})();
 };
 var getCurrentName = (pathname = location.pathname) => {
+	if (pathname in SPECIAL_PAGE_NAMES) return SPECIAL_PAGE_NAMES[pathname];
 	const [_, gId, cId] =
 		pathname.match(/^\/channels\/(\d+|@me|@favorites)\/\b(\d+|\w+(-\w+)*)\b/) ||
 		[];
@@ -1857,7 +2120,7 @@ var getCurrentName = (pathname = location.pathname) => {
 				channel.rawRecipients
 					.map((u) =>
 						!u.display_name && !u.global_name && u.bot
-							? `BOT (@${u.username})`
+							? `ボット (@${u.username})`
 							: RelationshipStore.getNickname(u.id) ||
 								u.display_name ||
 								u.global_name ||
@@ -1868,40 +2131,46 @@ var getCurrentName = (pathname = location.pathname) => {
 			);
 		else return pathname;
 	} else {
-		if (pathname === "/channels/@me") return "Friends";
+		if (pathname === "/channels/@me") return t("Friends");
 		else if (pathname.match(/^\/[a-z\-]+$/))
-			return pathname
+			return t(
+				pathname
 				.substr(1)
 				.split("-")
 				.map((part) => part.substr(0, 1).toUpperCase() + part.substr(1))
-				.join(" ");
+				.join(" "),
+			);
 		else return pathname;
 	}
 };
-var getCurrentIconUrl = (pathname = location.pathname) => {
-	try {
-		const [_, gId, cId] =
-			pathname.match(
-				/^\/channels\/(\d+|@me|@favorites)(?:\/\b(\d+|\w+(-\w+)*)\b)?/,
-			) || [];
-		if (gId) {
-			if (cId && gId.startsWith("@")) {
-				const channel = ChannelStore.getChannel(cId);
-				if (channel.isDM())
-					return UserStore.getUser(channel.getRecipientId()).getAvatarURL();
-				return IconUtilities.getChannelIconURL(channel);
-			} else if (!gId.startsWith("@")) {
-				return (
-					IconUtilities.getGuildIconURL(GuildStore.getGuild(gId)) ??
-					DefaultUserIconGrey
-				);
+var getCurrentIconUrl = (pathname = location.pathname) =>
+	cacheMapValue(iconUrlCache, pathname, () => {
+		try {
+			const [_, gId, cId] =
+				pathname.match(
+					/^\/channels\/(\d+|@me|@favorites)(?:\/\b(\d+|\w+(-\w+)*)\b)?/,
+				) || [];
+			if (gId) {
+				if (cId && gId.startsWith("@")) {
+					const channel = ChannelStore.getChannel(cId);
+					if (!channel) return DefaultUserIconGrey;
+					if (channel.isDM()) {
+						const recipient = UserStore.getUser(channel.getRecipientId());
+						return recipient?.getAvatarURL() ?? DefaultUserIconGrey;
+					}
+					return IconUtilities.getChannelIconURL(channel);
+				} else if (!gId.startsWith("@")) {
+					return (
+						IconUtilities.getGuildIconURL(GuildStore.getGuild(gId)) ??
+						DefaultUserIconGrey
+					);
+				}
 			}
+		} catch (error) {
+			console.error("getCurrentIconUrl でエラー:", error);
 		}
-	} catch (error) {
-		console.error("Error in getCurrentIconUrl:", error);
-	}
-	return DefaultUserIconGrey;
-};
+		return DefaultUserIconGrey;
+	});
 var GetTabStyles = (viewMode, item) => {
 	if (item === "unreadBadge") {
 		if (viewMode === "classic") return " channelTabs-classicBadgeAlignment";
@@ -2049,7 +2318,7 @@ var CozyTab = (props) => {
 					: /* @__PURE__ */ React.createElement(TabTypingBadge, {
 							viewMode: "alt",
 							isTyping: props.hasUsersTyping,
-							userIds: getChannelTypingUsers(props.channelId),
+							userIds: props.typingUsers,
 						}),
 			),
 			/* @__PURE__ */ React.createElement(
@@ -2136,7 +2405,7 @@ var CompactTab = (props) => {
 					/* @__PURE__ */ React.createElement(TabTypingBadge, {
 						viewMode: "classic",
 						isTyping: props.hasUsersTyping,
-						userIds: getChannelTypingUsers(props.channelId),
+						userIds: props.typingUsers,
 					}),
 				),
 		!(props.selected
@@ -2478,7 +2747,7 @@ var Fav = (props) =>
 					null,
 					/* @__PURE__ */ React.createElement(FavTypingBadge, {
 						isTyping: props.isTyping,
-						userIds: getChannelTypingUsers(props.channelId),
+						userIds: props.typingUsers,
 					}),
 				),
 	);
@@ -2494,7 +2763,7 @@ var TabListDropdown = (props) =>
 		{
 			className: "channelTabs-tabListDropdown",
 			onClick: (e) => CreateTabListContextMenu(props, e),
-			title: "Show all tabs",
+			title: t("Show all tabs"),
 		},
 		/* @__PURE__ */ React.createElement(ChevronDown, null),
 	);
@@ -2502,7 +2771,7 @@ var NoFavItemsPlaceholder = (props) =>
 	/* @__PURE__ */ React.createElement(
 		"span",
 		{ className: "channelTabs-noFavNotice" },
-		"You don't have any favs yet. Right click a tab to mark it as favourite. You can disable this bar in the settings.",
+		"まだお気に入りがありません。タブを右クリックするとお気に入りに追加できます。このバーは設定から無効化できます。",
 	);
 var FavItems = (props) => {
 	var isDefault = props.group === null;
@@ -2545,8 +2814,6 @@ var FavItems = (props) => {
 								showFavMentionBadges: props.showFavMentionBadges,
 								showFavTypingBadge: props.showFavTypingBadge,
 								showEmptyFavBadges: props.showEmptyFavBadges,
-								isTyping: isChannelTyping(fav.channelId),
-								currentStatus: getCurrentUserStatus(fav.url),
 								...result,
 							}),
 						),
@@ -2738,41 +3005,67 @@ function closeCurrentTab() {
 }
 function HorizontalScroll(props) {
 	const container = React.useRef(null);
-	let current = 0;
-	let target = 0;
+	const current = React.useRef(0);
+	const target = React.useRef(0);
+	const last = React.useRef(Date.now());
+	const animationFrame = React.useRef(null);
 	function expDecay(a, b, decay, dt) {
 		return b + (a - b) * Math.exp((-decay * dt) / 1e3);
 	}
-	let last = Date.now();
-	let resetLast = false;
-	function update() {
-		if (!container.current) return;
-		current = expDecay(current, target, 10, Date.now() - last);
-		container.current.scrollLeft = current;
-		last = Date.now();
-		if (Math.abs(container.current.scrollLeft - target) > 0) {
-			requestAnimationFrame(update);
-		} else {
-			resetLast = true;
+	const stopAnimation = React.useCallback(() => {
+		if (animationFrame.current !== null) {
+			cancelAnimationFrame(animationFrame.current);
+			animationFrame.current = null;
 		}
-	}
+	}, []);
+	const update = React.useCallback(() => {
+		if (!container.current) {
+			animationFrame.current = null;
+			return;
+		}
+		current.current = expDecay(
+			current.current,
+			target.current,
+			10,
+			Date.now() - last.current,
+		);
+		container.current.scrollLeft = current.current;
+		last.current = Date.now();
+		if (Math.abs(container.current.scrollLeft - target.current) > 0.5) {
+			animationFrame.current = requestAnimationFrame(update);
+		} else {
+			current.current = target.current;
+			container.current.scrollLeft = target.current;
+			animationFrame.current = null;
+		}
+	}, []);
+	React.useEffect(() => {
+		return () => stopAnimation();
+	}, [stopAnimation]);
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
 			ref: container,
-			onWheel: async (event) => {
-				target += event.deltaY;
-				target = Math.max(
+			onWheel: (event) => {
+				if (!container.current) return;
+				target.current += event.deltaY;
+				target.current = Math.max(
 					0,
 					Math.min(
-						target,
+						target.current,
 						container.current.scrollWidth - container.current.clientWidth,
 					),
 				);
-				if (resetLast) last = Date.now();
-				update();
+				if (animationFrame.current === null) {
+					last.current = Date.now();
+					animationFrame.current = requestAnimationFrame(update);
+				}
 			},
-			onScrollEnd: () => (current = container.current.scrollLeft),
+			onScrollEnd: () => {
+				if (!container.current) return;
+				current.current = container.current.scrollLeft;
+				target.current = current.current;
+			},
 			...props,
 		},
 		props.children,
@@ -2848,14 +3141,18 @@ var TabBar = (props) =>
 				React.createElement(
 					Flux.connectStores(
 						[UnreadStateStore, UserTypingStore, UserStatusStore],
-						() => ({
-							unreadCount: UnreadStateStore.getUnreadCount(tab.channelId),
-							unreadEstimated: UnreadStateStore.isEstimated(tab.channelId),
-							hasUnread: UnreadStateStore.hasUnread(tab.channelId),
-							mentionCount: UnreadStateStore.getMentionCount(tab.channelId),
-							hasUsersTyping: isChannelTyping(tab.channelId),
-							currentStatus: getCurrentUserStatus(tab.url),
-						}),
+						() => {
+							const typingUsers = getChannelTypingUsers(tab.channelId);
+							return {
+								unreadCount: UnreadStateStore.getUnreadCount(tab.channelId),
+								unreadEstimated: UnreadStateStore.isEstimated(tab.channelId),
+								hasUnread: UnreadStateStore.hasUnread(tab.channelId),
+								mentionCount: UnreadStateStore.getMentionCount(tab.channelId),
+								typingUsers,
+								hasUsersTyping: typingUsers !== null,
+								currentStatus: getCurrentUserStatus(tab.url),
+							};
+						},
 					)((result) =>
 						/* @__PURE__ */ React.createElement(Tab, {
 							ref: (el) => (props.tabRefs.current[tabIndex] = el),
@@ -2886,6 +3183,7 @@ var TabBar = (props) =>
 							hasUnread: result.hasUnread,
 							mentionCount: result.mentionCount,
 							hasUsersTyping: result.hasUsersTyping,
+							typingUsers: result.typingUsers,
 							showTabUnreadBadges: props.showTabUnreadBadges,
 							showTabMentionBadges: props.showTabMentionBadges,
 							showTabTypingBadge: props.showTabTypingBadge,
@@ -2996,35 +3294,45 @@ var TopBar = class TopBar2 extends React.Component {
 	//#region Tab Functions
 	minimizeTab(tabIndex) {
 		this.setState(
-			{
-				tabs: this.state.tabs.map((tab, index) => {
-					if (index == tabIndex)
-						return Object.assign({}, tab, {
-							minimized: !tab.minimized,
-						});
-					else return Object.assign({}, tab);
-				}),
-			},
+			(state) => ({
+				tabs: updateArrayIndex(state.tabs, tabIndex, (tab) =>
+					Object.assign({}, tab, { minimized: !tab.minimized }),
+				),
+			}),
 			this.props.plugin.saveSettings,
 		);
 	}
 	switchToTab(tabIndex) {
-		this.setState(
-			{
-				tabs: this.state.tabs.map((tab, index) => {
-					if (index === tabIndex) {
-						return Object.assign({}, tab, { selected: true });
-					} else {
-						return Object.assign({}, tab, { selected: false });
-					}
-				}),
-				selectedTabIndex: tabIndex,
-			},
-			this.props.plugin.saveSettings,
+		const { tabs } = this.state;
+		if (tabIndex < 0 || tabIndex >= tabs.length) return;
+		const previousSelectedIndex =
+			tabs[this.state.selectedTabIndex]?.selected
+				? this.state.selectedTabIndex
+				: tabs.findIndex((tab) => tab.selected);
+		let nextTabs = tabs;
+		if (previousSelectedIndex !== -1 && previousSelectedIndex !== tabIndex) {
+			nextTabs = updateArrayIndex(nextTabs, previousSelectedIndex, (tab) =>
+				tab.selected ? Object.assign({}, tab, { selected: false }) : tab,
+			);
+		}
+		nextTabs = updateArrayIndex(nextTabs, tabIndex, (tab) =>
+			tab.selected ? tab : Object.assign({}, tab, { selected: true }),
 		);
-		this.tabRefs.current[tabIndex]?.scrollIntoView({ behavior: "smooth" });
+		if (nextTabs !== tabs || this.state.selectedTabIndex !== tabIndex) {
+			this.setState(
+				{
+					tabs: nextTabs,
+					selectedTabIndex: tabIndex,
+				},
+				this.props.plugin.saveSettings,
+			);
+		}
+		this.tabRefs.current[tabIndex]?.scrollIntoView({
+			block: "nearest",
+			inline: "nearest",
+		});
 		switching = true;
-		NavigationUtils.transitionTo(this.state.tabs[tabIndex].url);
+		NavigationUtils.transitionTo(nextTabs[tabIndex].url);
 		switching = false;
 	}
 	closeTab(tabIndex, mode) {
@@ -3088,9 +3396,8 @@ var TopBar = class TopBar2 extends React.Component {
 		}
 	}
 	moveTab(fromIndex, toIndex) {
-		if (fromIndex === toIndex) return;
-		const tabs = this.state.tabs.filter((tab, index) => index !== fromIndex);
-		tabs.splice(toIndex, 0, this.state.tabs[fromIndex]);
+		const tabs = moveArrayItem(this.state.tabs, fromIndex, toIndex);
+		if (tabs === this.state.tabs) return;
 		this.setState(
 			{
 				tabs,
@@ -3115,7 +3422,7 @@ var TopBar = class TopBar2 extends React.Component {
 	renameFav(currentName, favIndex) {
 		let name = currentName;
 		BdApi.UI.showConfirmationModal(
-			"What should the new name be?",
+			t("What should the new name be?"),
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
 			}),
@@ -3123,12 +3430,11 @@ var TopBar = class TopBar2 extends React.Component {
 				onConfirm: () => {
 					if (!name) return;
 					this.setState(
-						{
-							favs: this.state.favs.map((fav, index) => {
-								if (index === favIndex) return Object.assign({}, fav, { name });
-								else return Object.assign({}, fav);
-							}),
-						},
+						(state) => ({
+							favs: updateArrayIndex(state.favs, favIndex, (fav) =>
+								Object.assign({}, fav, { name }),
+							),
+						}),
 						this.props.plugin.saveSettings,
 					);
 				},
@@ -3137,15 +3443,11 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	minimizeFav(favIndex) {
 		this.setState(
-			{
-				favs: this.state.favs.map((fav, index) => {
-					if (index == favIndex)
-						return Object.assign({}, fav, {
-							minimized: !fav.minimized,
-						});
-					else return Object.assign({}, fav);
-				}),
-			},
+			(state) => ({
+				favs: updateArrayIndex(state.favs, favIndex, (fav) =>
+					Object.assign({}, fav, { minimized: !fav.minimized }),
+				),
+			}),
 			this.props.plugin.saveSettings,
 		);
 	}
@@ -3172,34 +3474,22 @@ var TopBar = class TopBar2 extends React.Component {
 		);
 	}
 	moveFav(fromIndex, toIndex) {
-		if (fromIndex === toIndex) return;
-		const favs = this.state.favs.filter((fav, index) => index !== fromIndex);
-		favs.splice(toIndex, 0, this.state.favs[fromIndex]);
+		const favs = moveArrayItem(this.state.favs, fromIndex, toIndex);
+		if (favs === this.state.favs) return;
 		this.setState({ favs }, this.props.plugin.saveSettings);
 	}
 	//#endregion
 	//#region Fav Group Functions
 	createFavGroupId() {
-		var generatedId = this.state.favGroups.length;
-		var isUnique = false;
-		var duplicateFound = false;
-		while (!isUnique) {
-			for (var i = 0; i < this.state.favGroups.length; i++) {
-				var group = this.state.favGroups[i];
-				if (generatedId === group.groupId) duplicateFound = true;
-			}
-			if (!duplicateFound) isUnique = true;
-			else {
-				generatedId++;
-				duplicateFound = false;
-			}
-		}
+		const usedIds = new Set(this.state.favGroups.map((group) => group.groupId));
+		let generatedId = this.state.favGroups.length;
+		while (usedIds.has(generatedId)) generatedId++;
 		return generatedId;
 	}
 	addFavGroup() {
-		let name = "New Group";
+		let name = t("New Group");
 		BdApi.UI.showConfirmationModal(
-			"What should the new name be?",
+			t("What should the new name be?"),
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
 			}),
@@ -3222,7 +3512,7 @@ var TopBar = class TopBar2 extends React.Component {
 	renameFavGroup(currentName, groupId) {
 		let name = currentName;
 		BdApi.UI.showConfirmationModal(
-			"What should the new name be?",
+			t("What should the new name be?"),
 			/* @__PURE__ */ React.createElement(Textbox, {
 				onChange: (newContent) => (name = newContent.trim()),
 			}),
@@ -3230,12 +3520,14 @@ var TopBar = class TopBar2 extends React.Component {
 				onConfirm: () => {
 					if (!name) return;
 					this.setState(
-						{
-							favGroups: this.state.favGroups.map((group, index) => {
-								if (group.groupId === groupId)
-									return Object.assign({}, group, { name });
-								else return Object.assign({}, group);
-							}),
+						(state) => {
+							let found = false;
+							const favGroups = state.favGroups.map((group) => {
+								if (group.groupId !== groupId) return group;
+								found = true;
+								return Object.assign({}, group, { name });
+							});
+							return found ? { favGroups } : null;
 						},
 						this.props.plugin.saveSettings,
 					);
@@ -3245,44 +3537,28 @@ var TopBar = class TopBar2 extends React.Component {
 	}
 	removeFavGroup(groupId) {
 		this.setState(
-			{
-				favGroups: this.state.favGroups.filter(
-					(group, index) => group.groupId !== groupId,
+			(state) => ({
+				favGroups: state.favGroups.filter((group) => group.groupId !== groupId),
+				favs: state.favs.map((fav) =>
+					fav.groupId === groupId ? Object.assign({}, fav, { groupId: -1 }) : fav,
 				),
-			},
-			this.props.plugin.saveSettings,
-		);
-		this.setState(
-			{
-				favs: this.state.favs.map((fav, index) => {
-					if (fav.groupId === groupId)
-						return Object.assign({}, fav, { groupId: -1 });
-					else return Object.assign({}, fav);
-				}),
-			},
+			}),
 			this.props.plugin.saveSettings,
 		);
 	}
 	moveToFavGroup(favIndex, groupId) {
 		this.setState(
-			{
-				favs: this.state.favs.map((fav, index) => {
-					if (index === favIndex) {
-						return Object.assign({}, fav, { groupId });
-					} else {
-						return Object.assign({}, fav);
-					}
-				}),
-			},
+			(state) => ({
+				favs: updateArrayIndex(state.favs, favIndex, (fav) =>
+					Object.assign({}, fav, { groupId }),
+				),
+			}),
 			this.props.plugin.saveSettings,
 		);
 	}
 	moveFavGroup(fromIndex, toIndex) {
-		if (fromIndex === toIndex) return;
-		const favGroups = this.state.favGroups.filter(
-			(group, index) => index !== fromIndex,
-		);
-		favGroups.splice(toIndex, 0, this.state.favGroups[fromIndex]);
+		const favGroups = moveArrayItem(this.state.favGroups, fromIndex, toIndex);
+		if (favGroups === this.state.favGroups) return;
 		this.setState({ favGroups }, this.props.plugin.saveSettings);
 	}
 	//#endregion
@@ -3294,7 +3570,7 @@ var TopBar = class TopBar2 extends React.Component {
 				{
 					tabs: [
 						...this.state.tabs.map((tab) =>
-							Object.assign(tab, { selected: false }),
+							tab.selected ? Object.assign({}, tab, { selected: false }) : tab,
 						),
 						{
 							url: `/channels/${guildId || "@me"}/${channelId}`,
@@ -3335,11 +3611,11 @@ var TopBar = class TopBar2 extends React.Component {
 			{
 				tabs: [
 					...this.state.tabs.map((tab) =>
-						Object.assign(tab, { selected: false }),
+						tab.selected ? Object.assign({}, tab, { selected: false }) : tab,
 					),
 					{
 						url: "/channels/@me",
-						name: "Friends",
+						name: t("Friends"),
 						selected: true,
 						channelId: void 0,
 					},
@@ -3499,6 +3775,11 @@ module.exports = class ChannelTabs {
 	constructor(meta) {
 		this.meta = meta;
 		pluginMeta = meta;
+		this.saveSettingsTimeout = null;
+		this.flushSettings = this.flushSettings.bind(this);
+		this.saveSettings = this.saveSettings.bind(this);
+		this.keybindHandler = this.keybindHandler.bind(this);
+		this.clickHandler = this.clickHandler.bind(this);
 	}
 	start(isRetry = false) {
 		if (isRetry && !BdApi.Plugins.isEnabled(config.info.name)) return;
@@ -3515,20 +3796,20 @@ module.exports = class ChannelTabs {
 				this.state.cancelled = true;
 			},
 		};
-		this.saveSettings = this.saveSettings.bind(this);
-		this.keybindHandler = this.keybindHandler.bind(this);
 		this.onSwitch();
 		this.patchTitleBar(this.promises.state);
 		this.patchContextMenus();
 		this.ifReopenLastChannelDefault();
 		document.addEventListener("keydown", this.keybindHandler);
-		window.onclick = (event) => this.clickHandler(event);
+		document.addEventListener("click", this.clickHandler);
 		this.showChangelog();
 	}
 	stop() {
+		this.saveSettings(true);
 		this.removeStyle();
 		document.removeEventListener("keydown", this.keybindHandler);
-		window.onclick = null;
+		document.removeEventListener("click", this.clickHandler);
+		iconUrlCache.clear();
 		Patcher.unpatchAll();
 		this.promises.cancel();
 		patches.forEach((patch) => patch());
@@ -3541,10 +3822,10 @@ module.exports = class ChannelTabs {
 			return;
 		}
 		const titles = {
-			fixed: "Fixes",
-			added: "Features",
-			progress: "Progress",
-			improved: "Improvements",
+			fixed: t("Fixes"),
+			added: t("Features"),
+			progress: t("Progress"),
+			improved: t("Improvements"),
 		};
 		const changes = [];
 		for (const [version, changelog] of Object.entries(CHANGES)) {
@@ -3559,14 +3840,14 @@ module.exports = class ChannelTabs {
 					};
 					changes.push(change);
 				}
-				change.items.push(...messages);
+				change.items.push(...messages.map((message) => t(message)));
 			}
 		}
 		if (changes.length === 0) return;
 		UI.showChangelogModal({
-			title: this.meta.name,
-			subtitle: "Version " + this.meta.version,
-			blurb: `Here's what's been changed since version ${lastVersion}.`,
+			title: t(this.meta.name),
+			subtitle: formatVersionLabel(this.meta.version),
+			blurb: formatChangelogBlurb(lastVersion),
 			changes,
 		});
 		Data2.save("lastVersion", this.meta.version);
@@ -4425,7 +4706,7 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	//#endregion
 	//#region Handlers
 	clickHandler(e) {
-		if (!e.target.matches(".channelTabs-favGroupBtn")) {
+		if (!(e.target instanceof Element) || !e.target.closest(".channelTabs-favGroupBtn")) {
 			closeAllDropdowns();
 		}
 	}
@@ -4469,43 +4750,46 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 	onSwitch() {
 		if (switching) return;
 		if (TopBarRef.current) {
-			TopBarRef.current.setState(
-				{
-					tabs: TopBarRef.current.state.tabs.map((tab) => {
-						if (tab.selected) {
-							const channelId = SelectedChannelStore.getChannelId();
-							return {
-								name: getCurrentName(),
-								url: location.pathname,
-								selected: true,
-								currentStatus: getCurrentUserStatus(location.pathname),
-								channelId,
-								minimized:
-									this.settings.tabs[
-										this.settings.tabs.findIndex((tab2) => tab2.selected)
-									].minimized,
-							};
-						} else {
-							return Object.assign({}, tab);
-						}
-					}),
-				},
-				this.saveSettings,
-			);
+			const { tabs, selectedTabIndex } = TopBarRef.current.state;
+			const activeIndex =
+				tabs[selectedTabIndex]?.selected
+					? selectedTabIndex
+					: tabs.findIndex((tab) => tab.selected);
+			if (activeIndex === -1) return;
+			const channelId = SelectedChannelStore.getChannelId();
+			const currentTab = tabs[activeIndex];
+			const nextTab = {
+				name: getCurrentName(),
+				url: location.pathname,
+				selected: true,
+				currentStatus: getCurrentUserStatus(location.pathname),
+				channelId,
+				minimized: currentTab.minimized,
+			};
+			if (
+				currentTab.name === nextTab.name &&
+				currentTab.url === nextTab.url &&
+				currentTab.channelId === nextTab.channelId &&
+				currentTab.minimized === nextTab.minimized &&
+				currentTab.currentStatus === nextTab.currentStatus
+			)
+				return;
+			const nextTabs = [...tabs];
+			nextTabs[activeIndex] = nextTab;
+			TopBarRef.current.setState({ tabs: nextTabs }, this.saveSettings);
 		} else if (!this.settings.reopenLastChannel) {
 			const channelId = SelectedChannelStore.getChannelId();
-			this.settings.tabs[this.settings.tabs.findIndex((tab) => tab.selected)] =
-				{
-					name: getCurrentName(),
-					url: location.pathname,
-					selected: true,
-					currentStatus: getCurrentUserStatus(location.pathname),
-					channelId,
-					minimized:
-						this.settings.tabs[
-							this.settings.tabs.findIndex((tab) => tab.selected)
-						].minimized,
-				};
+			const selectedIndex = this.settings.tabs.findIndex((tab) => tab.selected);
+			if (selectedIndex === -1) return;
+			const currentTab = this.settings.tabs[selectedIndex];
+			this.settings.tabs[selectedIndex] = {
+				name: getCurrentName(),
+				url: location.pathname,
+				selected: true,
+				currentStatus: getCurrentUserStatus(location.pathname),
+				channelId,
+				minimized: currentTab.minimized,
+			};
 		}
 	}
 	mergeItems(itemsTab, itemsFav) {
@@ -4606,23 +4890,34 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 			}
 			return fav;
 		});
-		this.saveSettings();
+		this.saveSettings(true);
 	}
-	saveSettings() {
+	saveSettings(immediate = false) {
 		if (TopBarRef.current) {
 			this.settings.tabs = TopBarRef.current.state.tabs;
 			this.settings.favs = TopBarRef.current.state.favs;
 			this.settings.favGroups = TopBarRef.current.state.favGroups;
 		}
+		if (immediate) {
+			this.flushSettings();
+			return;
+		}
+		if (this.saveSettingsTimeout != null) clearTimeout(this.saveSettingsTimeout);
+		this.saveSettingsTimeout = setTimeout(this.flushSettings, 120);
+	}
+	flushSettings() {
+		if (this.saveSettingsTimeout != null) {
+			clearTimeout(this.saveSettingsTimeout);
+			this.saveSettingsTimeout = null;
+		}
 		try {
 			Data.save(this.getSettingsPath(), "settings", this.settings);
 		} catch (error) {
-			console.error("Error saving settings:", error);
+			console.error("設定の保存に失敗しました:", error);
 		}
 	}
 	getSettingsPanel() {
-		return UI.buildSettingsPanel({
-			settings: [
+		const settings = [
 				//#region Startup Settings
 				{
 					id: "startupSettings",
@@ -5115,7 +5410,9 @@ html:not(.platform-win) #channelTabs-settingsMenu {
 					],
 				},
 				//#endregion
-			],
+			];
+		return UI.buildSettingsPanel({
+			settings: localizeSettingsEntries(settings),
 		});
 	}
 	//#endregion
