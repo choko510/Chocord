@@ -67,6 +67,9 @@ importers:
       native-file-system-adapter:
         specifier: ^3.0.1
         version: 3.0.1
+      p-limit:
+        specifier: ^7.3.0
+        version: 7.3.0
       usercss-meta:
         specifier: ^0.12.0
         version: 0.12.0
@@ -140,9 +143,6 @@ importers:
       moment:
         specifier: ^2.30.1
         version: 2.30.1
-      p-limit:
-        specifier: ^7.3.0
-        version: 7.3.0
       puppeteer-core:
         specifier: ^24.39.1
         version: 24.39.1
