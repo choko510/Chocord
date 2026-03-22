@@ -5,12 +5,13 @@
  */
 
 import { registerCommand, unregisterCommand } from "@api/Commands";
+import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";
 import { managedStyleRootNode } from "@api/Styles";
 import { createAndAppendStyle } from "@utils/css";
 import { Logger } from "@utils/Logger";
-import { findAll, findCssClasses, findStore, mapMangledModule } from "@webpack";
+import { findAll, findCssClasses, findStore, mapMangledModule, wreq } from "@webpack";
 import * as WebpackCommon from "@webpack/common";
-import { Alerts, ContextMenuApi, React, showToast, Toasts, useStateFromStores } from "@webpack/common";
+import { Alerts, ContextMenuApi, Menu, React, showToast, Toasts, useStateFromStores } from "@webpack/common";
 
 type BdFilter = (module: unknown) => boolean;
 
@@ -659,6 +660,40 @@ class BdRuntime {
                     return false;
                 }
             }, { storeName: name }),
+            byComponentType: (matcher: BdFilter) => withMatcherMeta((module: unknown) => {
+                if (typeof matcher !== "function") return false;
+
+                const seen = new Set<unknown>();
+                let component = module;
+                while (component != null && !seen.has(component)) {
+                    seen.add(component);
+
+                    try {
+                        if (matcher(component)) {
+                            return true;
+                        }
+                    } catch {
+                        // noop
+                    }
+
+                    if (typeof component !== "object" && typeof component !== "function") return false;
+
+                    const typedComponent = component as { type?: unknown; render?: unknown; };
+                    if (typedComponent.type) {
+                        component = typedComponent.type;
+                        continue;
+                    }
+
+                    if (typedComponent.render) {
+                        component = typedComponent.render;
+                        continue;
+                    }
+
+                    return false;
+                }
+
+                return false;
+            }, getMatcherMeta(matcher) ?? {}),
             bySource: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
             byStrings: (...code: Array<string | RegExp>) => (module: unknown) => moduleContainsCode(module, code),
         };
@@ -1292,10 +1327,37 @@ class BdRuntime {
             return normalizeWebpackMatch(selectedMatch, keys);
         };
 
+        const getById = (id: string | number) => {
+            const targetId = typeof id === "number" || typeof id === "string"
+                ? id
+                : String(id ?? "");
+            if (targetId === "") return null;
+
+            try {
+                return wreq(targetId as PropertyKey);
+            } catch {
+                // noop
+            }
+
+            if (typeof targetId === "string") {
+                const numericId = Number(targetId);
+                if (Number.isNaN(numericId)) return null;
+
+                try {
+                    return wreq(numericId as PropertyKey);
+                } catch {
+                    // noop
+                }
+            }
+
+            return null;
+        };
+
         return {
             Filters,
             Stores: compatStores,
             getByKeys,
+            getById,
             getByStrings,
             getStore: (name: string) => findStore(name),
             getModule,
@@ -1466,6 +1528,7 @@ class BdRuntime {
 
             return `${pluginName} notice`;
         };
+        const defaultLegacyStyleId = `${pluginName}:style`;
 
         const renderFallbackMenuItems = (items: BdMenuItem[], onClose?: () => void, prefix = "menu") => {
             const renderEntries: React.ReactNode[] = [];
@@ -1564,6 +1627,9 @@ class BdRuntime {
         };
 
         const contextMenuApi = {
+            get Item() {
+                return Menu.MenuItem;
+            },
             buildMenu: (items: unknown) => {
                 const normalizedItems = Array.isArray(items) ? items as BdMenuItem[] : [];
                 const contextMenuModule = getContextMenuModule();
@@ -1596,6 +1662,32 @@ class BdRuntime {
 
                 if (typeof menu !== "function") return;
                 ContextMenuApi.openContextMenu(event as never, menu as never);
+            },
+            patch: (navId: unknown, callback: unknown) => {
+                const navIds = Array.isArray(navId)
+                    ? navId.filter((id): id is string => typeof id === "string" && id.length > 0)
+                    : typeof navId === "string" && navId.length > 0
+                        ? [navId]
+                        : [];
+                if (!navIds.length || typeof callback !== "function") {
+                    logger.warn("BdApi.ContextMenu.patch called with invalid arguments.");
+                    return () => void 0;
+                }
+
+                const wrappedPatch: Parameters<typeof addContextMenuPatch>[1] = (children, ...args) => {
+                    const menuRoot = { props: { children } };
+
+                    try {
+                        (callback as (menuRoot: { props: { children: unknown; }; }, ...args: unknown[]) => void)(menuRoot, ...args);
+                    } catch (error) {
+                        logger.error("Failed to execute BdApi.ContextMenu.patch callback.", error);
+                    }
+                };
+
+                addContextMenuPatch(navIds, wrappedPatch);
+                return () => {
+                    removeContextMenuPatch(navIds, wrappedPatch);
+                };
             }
         };
 
@@ -1729,8 +1821,28 @@ class BdRuntime {
                 unpatchAll: () => patcher.unpatchAll()
             },
             DOM: {
-                addStyle: (id: string, css: string) => styles.addStyle(id, css),
-                removeStyle: (id: string) => styles.removeStyle(id),
+                addStyle: (...args: unknown[]) => {
+                    if (!args.length) {
+                        logger.warn("BdApi.DOM.addStyle called without CSS.");
+                        return;
+                    }
+
+                    if (args.length === 1) {
+                        styles.addStyle(defaultLegacyStyleId, String(args[0] ?? ""));
+                        return;
+                    }
+
+                    const [id, css] = args;
+                    styles.addStyle(String(id ?? defaultLegacyStyleId), String(css ?? ""));
+                },
+                removeStyle: (...args: unknown[]) => {
+                    if (!args.length) {
+                        styles.removeStyle(defaultLegacyStyleId);
+                        return;
+                    }
+
+                    styles.removeStyle(String(args[0] ?? defaultLegacyStyleId));
+                },
                 parseHTML: (html: string) => {
                     if (typeof document === "undefined") return null;
 
@@ -1931,7 +2043,7 @@ export function createBdPluginBridge(pluginName: string, source: string): BdPlug
         }
     };
 
-    const renderLegacySettingsPanel = (panel: unknown): React.ReactNode => {
+    const renderLegacySettingsPanel = (panel: unknown) => {
         if (panel == null || panel === false) return null;
         if (React.isValidElement(panel)) return panel;
 
@@ -2019,6 +2131,6 @@ export function createBdPluginBridge(pluginName: string, source: string): BdPlug
     return {
         start,
         stop,
-        settingsAboutComponent: LegacySettingsAboutComponent
+        settingsAboutComponent: LegacySettingsAboutComponent as React.ComponentType
     };
 }

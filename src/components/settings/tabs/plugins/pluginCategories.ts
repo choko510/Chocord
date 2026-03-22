@@ -197,6 +197,7 @@ export const PLUGIN_CATEGORIES = {
         "KeywordNotify",
         "MessageNotifier",
         "MicLoopbackTester",
+        "MultiStreamPopouts",
         "NeverPausePreviews",
         "NotificationTitle",
         "NotificationVolume",

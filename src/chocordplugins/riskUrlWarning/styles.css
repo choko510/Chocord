@@ -1,0 +1,36 @@
+.vc-risk-url-warning-card {
+    background: var(--background-feedback-critical);
+    border: 1px solid var(--background-feedback-critical);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    padding: 10px;
+}
+
+.vc-risk-url-warning-title {
+    color: var(--text-feedback-critical);
+}
+
+.vc-risk-url-warning-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.vc-risk-url-warning-item {
+    background: color-mix(in srgb, var(--background-feedback-critical) 75%, black);
+    border-radius: var(--radius-xs);
+    padding: 6px 8px;
+}
+
+.vc-risk-url-warning-host {
+    color: var(--text-feedback-critical);
+}
+
+.vc-risk-url-warning-details {
+    color: var(--text-muted);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}

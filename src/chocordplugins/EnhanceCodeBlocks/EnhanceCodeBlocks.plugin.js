@@ -242,22 +242,25 @@ var css_default, init_css = __esm({
 .ECBlock .hljs-variable {\r
   color: #9cdcfe;\r
 }\r
-.ECBlock .hljs-variable\\.language_ {\r
+.ECBlock .hljs-variable.language_ {\r
   color: #569cd6;\r
 }\r
-.ECBlock .hljs-variable\\.constant_ {\r
+.ECBlock .hljs-variable.constant_ {\r
   color: #4fc1ff;\r
 }\r
 .ECBlock .hljs-title {\r
+  color: #4fc1ff;\r
+}\r
+.ECBlock .hljs-title.class_ {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-title.class_.inherited__ {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-title.function_ {\r
   color: #dcdcaa;\r
 }\r
-.ECBlock .hljs-title\\.class_ {\r
-  color: #4ec9b0;\r
-}\r
-.ECBlock .hljs-title\\.class_\\.inherited__ {\r
-  color: #4ec9b0;\r
-}\r
-.ECBlock .hljs-title\\.function_ {\r
+.ECBlock .hljs-title.function_.invoke__ {\r
   color: #dcdcaa;\r
 }\r
 .ECBlock .hljs-params {\r
@@ -292,6 +295,18 @@ var css_default, init_css = __esm({
 }\r
 .ECBlock .hljs-attribute {\r
   color: #9cdcfe;\r
+}\r
+.ECBlock .hljs-module {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-namespace {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-class {\r
+  color: #4ec9b0;\r
+}\r
+.ECBlock .hljs-function {\r
+  color: #dcdcaa;\r
 }\r
 .ECBlock .hljs-selector-tag {\r
   color: #d7ba7d;\r
@@ -734,7 +749,7 @@ function Header({ angle, collapsed, setCollapsed, languageName, isSVG, showPrevi
     transform: angle.to({
       output: ["rotate(180deg)", "rotate(270deg)"]
     })
-  } }, BdApi.React.createElement(Tooltip, { text: collapsed ? "Collapsed" : "Uncollapse", hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-collapse", ...props, onClick: () => setCollapsed(!collapsed) }, BdApi.React.createElement(icon_default, { size: 22, name: "arrow" })))), BdApi.React.createElement(
+  } }, BdApi.React.createElement(Tooltip, { text: collapsed ? "Collapsed" : "Uncollapse", hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-collapse", ...props, onClick: () => setCollapsed((value) => !value) }, BdApi.React.createElement(icon_default, { size: 22, name: "arrow" })))), BdApi.React.createElement(
     Popout,
     {
       targetElementRef,
@@ -750,9 +765,9 @@ function Header({ angle, collapsed, setCollapsed, languageName, isSVG, showPrevi
       onRequestClose: () => setShouldShow(!1)
     },
     (props) => BdApi.React.createElement("div", { className: "ECBlock-lang", ref: targetElementRef, ...props, onClick: (event) => {
-      setShouldShow(!shouldShow), props.onClick && props.onClick(event);
+      setShouldShow((value) => !value), props.onClick && props.onClick(event);
     } }, languageName)
-  ), !loading && BdApi.React.createElement(Tooltip, { text: `${bytes} B`, hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-byteSize", ...props }, formattedBytes))), BdApi.React.createElement("div", { className: "ECBlock-actions" }, remove && BdApi.React.createElement(Tooltip, { text: message("oyYWHE"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-remove", ...props, onClick: remove }, BdApi.React.createElement(icon_default, { size: 22, name: "trash" }))), isSVG && BdApi.React.createElement(Tooltip, { text: "Preview", hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: `ECBlock-previewButton${showPreview ? " ECBlock-active" : ""}`, ...props, onClick: () => setShowPreview(!showPreview) }, BdApi.React.createElement(icon_default, { size: 22, name: "eye" }))), BdApi.React.createElement(Tooltip, { text: message("1WjMbC"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-downloadButton", ...props, onClick: downloadAction }, BdApi.React.createElement(icon_default, { size: 22, name: "download" }))), BdApi.React.createElement(Tooltip, { text: copied ? message("t5VZ88") : message("OpuAlK"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: `ECBlock-copyButton${copied ? " ECBlock-copied" : ""}`, ...props, onClick: copyAction }, BdApi.React.createElement(icon_default, { size: 22, name: "copy" }))), !modal && BdApi.React.createElement(Tooltip, { text: message("0PQYk3"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-enlarge", ...props, onClick: enlargeAction }, BdApi.React.createElement(icon_default, { size: 22, name: "enlarge" })))));
+  ), !loading && BdApi.React.createElement(Tooltip, { text: `${bytes} B`, hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-byteSize", ...props }, formattedBytes))), BdApi.React.createElement("div", { className: "ECBlock-actions" }, remove && BdApi.React.createElement(Tooltip, { text: message("oyYWHE"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-remove", ...props, onClick: remove }, BdApi.React.createElement(icon_default, { size: 22, name: "trash" }))), isSVG && BdApi.React.createElement(Tooltip, { text: "Preview", hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: `ECBlock-previewButton${showPreview ? " ECBlock-active" : ""}`, ...props, onClick: () => setShowPreview((value) => !value) }, BdApi.React.createElement(icon_default, { size: 22, name: "eye" }))), BdApi.React.createElement(Tooltip, { text: message("1WjMbC"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-downloadButton", ...props, onClick: downloadAction }, BdApi.React.createElement(icon_default, { size: 22, name: "download" }))), BdApi.React.createElement(Tooltip, { text: copied ? message("t5VZ88") : message("OpuAlK"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: `ECBlock-copyButton${copied ? " ECBlock-copied" : ""}`, ...props, onClick: copyAction }, BdApi.React.createElement(icon_default, { size: 22, name: "copy" }))), !modal && BdApi.React.createElement(Tooltip, { text: message("0PQYk3"), hideOnClick: !1 }, (props) => BdApi.React.createElement("div", { className: "ECBlock-enlarge", ...props, onClick: enlargeAction }, BdApi.React.createElement(icon_default, { size: 22, name: "enlarge" })))));
 }
 var import_react10, import_react_spring2, header_default, init_header = __esm({
   "src/codeblock/header.tsx"() {
@@ -835,7 +850,7 @@ var import_react13, preview_default, init_preview = __esm({
 
 // src/codeblock/index.tsx
 function CodeBlock({ content, lang, modal, fileName, loading = !1, remove }) {
-  let tableRef = (0, import_react14.useRef)(null), [_lang, setLang] = useStateDeps(lang, [lang, content]), [autoCollapse] = useData("autoCollapse", !1), [collapsed, setCollapsed] = useStateDeps(() => modal ? !1 : autoCollapse, [autoCollapse, content]), language = useLanguage(_lang), highlighted = useHighlighted(language, _lang, content), [showPreview, setShowPreview] = (0, import_react14.useState)(!1), [previewHeight] = useData("previewHeight", 200), { height, angle } = useSizing(collapsed, tableRef, modal, content, lang, showPreview), src = useSrc(content), isSVG = (0, import_react14.useMemo)(() => lang === "svg" && language.name === "HTML, XML" && Boolean(src), [lang, language, src]), downloadAction = (0, import_react14.useCallback)(() => {
+  let tableRef = (0, import_react14.useRef)(null), [_lang, setLang] = useStateDeps(lang, [lang]), [autoCollapse] = useData("autoCollapse", !1), [collapsed, setCollapsed] = useStateDeps(() => modal ? !1 : autoCollapse, [autoCollapse]), language = useLanguage(_lang), highlighted = useHighlighted(language, _lang, content), [showPreview, setShowPreview] = (0, import_react14.useState)(!1), [previewHeight] = useData("previewHeight", 200), { height, angle } = useSizing(collapsed, tableRef, modal, content, lang, showPreview), src = useSrc(content), isSVG = (0, import_react14.useMemo)(() => lang === "svg" && language.name === "HTML, XML" && Boolean(src), [lang, language, src]), downloadAction = (0, import_react14.useCallback)(() => {
     loading || window.DiscordNative && window.DiscordNative.fileManager.saveWithDialog(content, fileName());
   }, [content, lang, loading]), [copied, setCopied] = (0, import_react14.useState)(!1), setCopiedFalse = (0, import_react14.useMemo)(() => debounce(() => setCopied(!1), 2e3), []), copyAction = (0, import_react14.useCallback)(() => {
     loading || (window.DiscordNative && window.DiscordNative.clipboard.copy(content), setCopied(!0), setCopiedFalse());
@@ -1022,7 +1037,7 @@ function Settings() {
       nudgeAlignIntoViewport: !0,
       renderPopout: () => BdApi.React.createElement(menu_default, { onClose: () => setOpen(!1) })
     },
-    (props) => BdApi.React.createElement("div", { ...props, onClick: () => setOpen(!open), role: "button", tabIndex: 1, className: `ECBlock-overflow${open ? " ECBlock-selected" : ""}` }, BdApi.React.createElement(icon_default, { name: "overflow", size: 24 }))
+    (props) => BdApi.React.createElement("div", { ...props, onClick: () => setOpen((value) => !value), role: "button", tabIndex: 1, className: `ECBlock-overflow${open ? " ECBlock-selected" : ""}` }, BdApi.React.createElement(icon_default, { name: "overflow", size: 24 }))
   ), BdApi.React.createElement(
     Switch,
     {

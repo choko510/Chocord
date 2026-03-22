@@ -4,20 +4,18 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { EquicordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import legacyPluginSource from "file://./GameTimeTracker.plugin.js?trim=false";
+import legacyPluginSource from "file://./MultiStreamPopouts.plugin.js?trim=false";
 
 import { createBdPluginBridge } from "../_api/bdCompat";
 
-const bridge = createBdPluginBridge("GameTimeTracker", legacyPluginSource);
+const bridge = createBdPluginBridge("MultiStreamPopouts", legacyPluginSource);
 
 export default definePlugin({
-    name: "GameTimeTracker",
-    description: "Tracks time spent in games.",
-    authors: [{
-        name: "Yentis",
-        id: 68834122860077056n
-    }],
+    name: "MultiStreamPopouts",
+    description: "Allows you to open multiple streams each in their own popout windows.",
+    authors: [EquicordDevs.HypedDomi],
     settingsAboutComponent: bridge.settingsAboutComponent,
     start() {
         bridge.start();
