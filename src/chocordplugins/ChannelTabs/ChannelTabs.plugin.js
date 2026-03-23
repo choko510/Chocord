@@ -2275,7 +2275,7 @@ var TabTypingBadge = ({ viewMode, isTyping, userIds }) => {
 		),
 	);
 };
-var CozyTab = (props) => {
+var CozyTab = React.memo((props) => {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		null,
@@ -2364,8 +2364,8 @@ var CozyTab = (props) => {
 			}),
 		),
 	);
-};
-var CompactTab = (props) => {
+});
+var CompactTab = React.memo((props) => {
 	return /* @__PURE__ */ React.createElement(
 		"div",
 		null,
@@ -2447,17 +2447,58 @@ var CompactTab = (props) => {
 							}),
 				),
 	);
-};
-var Tab = (props) =>
-	/* @__PURE__ */ React.createElement(
+});
+var Tab = React.memo((props) => {
+	const handleMouseDown = React.useCallback((e) => {
+		const startX = e.pageX;
+		const startY = e.pageY;
+		let mouseMove = (e2) => {
+			if (
+				Math.sqrt((startX - e2.pageX) ** 2) > 20 ||
+				Math.sqrt((startY - e2.pageY) ** 2) > 20
+			) {
+				currentTabDragIndex = props.tabIndex;
+				document.removeEventListener("mousemove", mouseMove);
+				document.removeEventListener("mouseup", mouseUp);
+				let dragging = (e3) => {
+					if (currentTabDragIndex != currentTabDragDestinationIndex) {
+						if (currentTabDragDestinationIndex != -1) {
+							props.moveTab(
+								currentTabDragIndex,
+								currentTabDragDestinationIndex,
+							);
+							currentTabDragIndex = currentTabDragDestinationIndex;
+						}
+					}
+				};
+				let releasing = (e3) => {
+					document.removeEventListener("mousemove", dragging);
+					document.removeEventListener("mouseup", releasing);
+					currentTabDragIndex = -1;
+					currentTabDragDestinationIndex = -1;
+				};
+				document.addEventListener("mousemove", dragging);
+				document.addEventListener("mouseup", releasing);
+			}
+		};
+		let mouseUp = (_) => {
+			document.removeEventListener("mousemove", mouseMove);
+			document.removeEventListener("mouseup", mouseUp);
+		};
+		document.addEventListener("mousemove", mouseMove);
+		document.addEventListener("mouseup", mouseUp);
+	}, [props.tabIndex, props.moveTab]);
+
+	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
-			className:
-				"channelTabs-tab" +
-				(props.selected ? " channelTabs-selected" : "") +
-				(props.minimized ? " channelTabs-minimized" : "") +
-				(props.hasUnread ? " channelTabs-unread" : "") +
-				(props.mentionCount > 0 ? " channelTabs-mention" : ""),
+			className: [
+				"channelTabs-tab",
+				props.selected && "channelTabs-selected",
+				props.minimized && "channelTabs-minimized",
+				props.hasUnread && "channelTabs-unread",
+				props.mentionCount > 0 && "channelTabs-mention"
+			].filter(Boolean).join(" "),
 			ref: props.ref,
 			"data-mention-count": props.mentionCount,
 			"data-unread-count": props.unreadCount,
@@ -2478,45 +2519,7 @@ var Tab = (props) =>
 					return;
 				currentTabDragDestinationIndex = props.tabIndex;
 			},
-			onMouseDown: (e) => {
-				let mouseMove = (e2) => {
-					if (
-						Math.sqrt((e.pageX - e2.pageX) ** 2) > 20 ||
-						Math.sqrt((e.pageY - e2.pageY) ** 2) > 20
-					) {
-						currentTabDragIndex = props.tabIndex;
-						document.removeEventListener("mousemove", mouseMove);
-						document.removeEventListener("mouseup", mouseUp);
-						let dragging = (e3) => {
-							if (currentTabDragIndex != currentTabDragDestinationIndex) {
-								if (currentTabDragDestinationIndex != -1) {
-									props.moveTab(
-										currentTabDragIndex,
-										currentTabDragDestinationIndex,
-									);
-									currentTabDragDestinationIndex =
-										currentTabDragDestinationIndex;
-									currentTabDragIndex = currentTabDragDestinationIndex;
-								}
-							}
-						};
-						let releasing = (e3) => {
-							document.removeEventListener("mousemove", dragging);
-							document.removeEventListener("mouseup", releasing);
-							currentTabDragIndex = -1;
-							currentTabDragDestinationIndex = -1;
-						};
-						document.addEventListener("mousemove", dragging);
-						document.addEventListener("mouseup", releasing);
-					}
-				};
-				let mouseUp = (_) => {
-					document.removeEventListener("mousemove", mouseMove);
-					document.removeEventListener("mouseup", mouseUp);
-				};
-				document.addEventListener("mousemove", mouseMove);
-				document.addEventListener("mouseup", mouseUp);
-			},
+			onMouseDown: handleMouseDown,
 		},
 		props.compactStyle ? CompactTab(props) : CozyTab(props),
 		/* @__PURE__ */ React.createElement(TabClose, {
@@ -2524,6 +2527,7 @@ var Tab = (props) =>
 			closeTab: () => props.closeTab(props.tabIndex),
 		}),
 	);
+});
 var FavMoveToGroupList = (props) => {
 	var groups = props.favGroups.map((group, index) => {
 		var entry = {
@@ -2610,21 +2614,59 @@ var FavTypingBadge = ({ isTyping, userIds }) => {
 			),
 	);
 };
-var Fav = (props) =>
-	/* @__PURE__ */ React.createElement(
+var Fav = React.memo((props) => {
+	const handleMouseDown = React.useCallback((e) => {
+		const startX = e.pageX;
+		const startY = e.pageY;
+		let mouseMove = (e2) => {
+			if (
+				Math.sqrt((startX - e2.pageX) ** 2) > 20 ||
+				Math.sqrt((startY - e2.pageY) ** 2) > 20
+			) {
+				currentFavDragIndex = props.favIndex;
+				document.removeEventListener("mousemove", mouseMove);
+				document.removeEventListener("mouseup", mouseUp);
+				let dragging = (e3) => {
+					if (currentFavDragIndex != currentFavDragDestinationIndex) {
+						if (currentFavDragDestinationIndex != -1) {
+							props.moveFav(
+								currentFavDragIndex,
+								currentFavDragDestinationIndex,
+							);
+							currentFavDragIndex = currentFavDragDestinationIndex;
+						}
+					}
+				};
+				let releasing = (e3) => {
+					document.removeEventListener("mousemove", dragging);
+					document.removeEventListener("mouseup", releasing);
+					currentFavDragIndex = -1;
+					currentFavDragDestinationIndex = -1;
+				};
+				document.addEventListener("mousemove", dragging);
+				document.addEventListener("mouseup", releasing);
+			}
+		};
+		let mouseUp = (_) => {
+			document.removeEventListener("mousemove", mouseMove);
+			document.removeEventListener("mouseup", mouseUp);
+		};
+		document.addEventListener("mousemove", mouseMove);
+		document.addEventListener("mouseup", mouseUp);
+	}, [props.favIndex, props.moveFav]);
+
+	return /* @__PURE__ */ React.createElement(
 		"div",
 		{
-			className:
-				"channelTabs-fav" +
-				(props.channelId
-					? " channelTabs-channel"
-					: props.guildId
-						? " channelTabs-guild"
-						: "") +
-				(props.selected ? " channelTabs-selected" : "") +
-				(props.minimized ? " channelTabs-minimized" : "") +
-				(props.hasUnread ? " channelTabs-unread" : "") +
-				(props.mentionCount > 0 ? " channelTabs-mention" : ""),
+			className: [
+				"channelTabs-fav",
+				props.channelId && "channelTabs-channel",
+				!props.channelId && props.guildId && "channelTabs-guild",
+				props.selected && "channelTabs-selected",
+				props.minimized && "channelTabs-minimized",
+				props.hasUnread && "channelTabs-unread",
+				props.mentionCount > 0 && "channelTabs-mention"
+			].filter(Boolean).join(" "),
 			"data-mention-count": props.mentionCount,
 			"data-unread-count": props.unreadCount,
 			"data-unread-estimated": props.unreadEstimated,
@@ -2648,45 +2690,7 @@ var Fav = (props) =>
 					return;
 				currentFavDragDestinationIndex = props.favIndex;
 			},
-			onMouseDown: (e) => {
-				let mouseMove = (e2) => {
-					if (
-						Math.sqrt((e.pageX - e2.pageX) ** 2) > 20 ||
-						Math.sqrt((e.pageY - e2.pageY) ** 2) > 20
-					) {
-						currentFavDragIndex = props.favIndex;
-						document.removeEventListener("mousemove", mouseMove);
-						document.removeEventListener("mouseup", mouseUp);
-						let dragging = (e3) => {
-							if (currentFavDragIndex != currentFavDragDestinationIndex) {
-								if (currentFavDragDestinationIndex != -1) {
-									props.moveFav(
-										currentFavDragIndex,
-										currentFavDragDestinationIndex,
-									);
-									currentFavDragDestinationIndex =
-										currentFavDragDestinationIndex;
-									currentFavDragIndex = currentFavDragDestinationIndex;
-								}
-							}
-						};
-						let releasing = (e3) => {
-							document.removeEventListener("mousemove", dragging);
-							document.removeEventListener("mouseup", releasing);
-							currentFavDragIndex = -1;
-							currentFavDragDestinationIndex = -1;
-						};
-						document.addEventListener("mousemove", dragging);
-						document.addEventListener("mouseup", releasing);
-					}
-				};
-				let mouseUp = (_) => {
-					document.removeEventListener("mousemove", mouseMove);
-					document.removeEventListener("mouseup", mouseUp);
-				};
-				document.addEventListener("mousemove", mouseMove);
-				document.addEventListener("mouseup", mouseUp);
-			},
+			onMouseDown: handleMouseDown,
 		},
 		/* @__PURE__ */ React.createElement(
 			"svg",
@@ -2751,6 +2755,7 @@ var Fav = (props) =>
 					}),
 				),
 	);
+});
 var NewTab = (props) =>
 	/* @__PURE__ */ React.createElement(
 		"div",
